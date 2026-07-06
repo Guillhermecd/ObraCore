@@ -14,6 +14,7 @@ import {
   Typography,
   Upload,
   message,
+  theme,
   type UploadProps,
 } from "antd";
 import type { CSSProperties } from "react";
@@ -48,17 +49,6 @@ const pageHeaderStyle: CSSProperties = {
   marginBottom: 20,
 };
 
-const pageTitleStyle: CSSProperties = {
-  margin: 0,
-  color: "#102A43",
-  fontSize: 26,
-};
-
-const pageDescriptionStyle: CSSProperties = {
-  margin: "4px 0 0",
-  color: "#627D98",
-};
-
 const profileAvatarStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
@@ -69,11 +59,6 @@ const profileAvatarStyle: CSSProperties = {
 const profileDataListStyle: CSSProperties = {
   display: "grid",
   gap: 4,
-};
-
-const profileDataRowStyle: CSSProperties = {
-  padding: "14px 0",
-  borderBottom: "1px solid #E5E7EB",
 };
 
 const profileDataLastRowStyle: CSSProperties = {
@@ -92,12 +77,6 @@ const profileDataValueRowStyle: CSSProperties = {
   flexWrap: "wrap",
 };
 
-const profileDataValueStyle: CSSProperties = {
-  color: "#102A43",
-  fontSize: 16,
-  lineHeight: 1.4,
-};
-
 const profileInlineEditStyle: CSSProperties = {
   width: 24,
   height: 24,
@@ -105,6 +84,30 @@ const profileInlineEditStyle: CSSProperties = {
 };
 
 export function ProfilePage() {
+  const { token } = theme.useToken();
+
+  const pageTitleStyle: CSSProperties = {
+    margin: 0,
+    color: token.colorTextHeading,
+    fontSize: 26,
+  };
+
+  const pageDescriptionStyle: CSSProperties = {
+    margin: "4px 0 0",
+    color: token.colorTextSecondary,
+  };
+
+  const profileDataRowStyle: CSSProperties = {
+    padding: "14px 0",
+    borderBottom: `1px solid ${token.colorBorderSecondary || token.colorBorder}`,
+  };
+
+  const profileDataValueStyle: CSSProperties = {
+    color: token.colorTextHeading,
+    fontSize: 16,
+    lineHeight: 1.4,
+  };
+
   const screens = Grid.useBreakpoint();
   const isDesktop = Boolean(screens.md);
   usePrivateMobileHeader("Perfil");

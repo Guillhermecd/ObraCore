@@ -29,6 +29,7 @@ module.exports = async function register(req, res) {
     ...verification,
   }).fetch();
 
+  await sails.services.groupservice.ensurePersonalGroup(user);
   await sails.services.emailservice.sendVerificationEmail(user);
 
   return res.status(201).json({

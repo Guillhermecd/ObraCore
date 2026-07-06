@@ -11,6 +11,8 @@ module.exports = async function login(req, res) {
     return res.status(401).json({ message: 'E-mail ou senha inválidos.' });
   }
 
+  await sails.services.groupservice.ensurePersonalGroup(user);
+
   return res.json({
     token: sails.services.authservice.signToken(user),
     user: sails.services.authservice.sanitizeUser(user),

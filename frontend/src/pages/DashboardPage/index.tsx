@@ -1,5 +1,7 @@
 import { Bar, Column } from "@ant-design/charts";
+import { DownloadOutlined } from "@ant-design/icons";
 import {
+  Button,
   Card,
   DatePicker,
   Empty,
@@ -7,11 +9,14 @@ import {
   Statistic,
   Table,
   message,
+  theme,
   type TableColumnsType,
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
+import { toPng } from "html-to-image";
+import { jsPDF } from "jspdf";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ExpenseCategoryService } from "../../api/modules/ExpenseCategoryService";
 import { ExpenseService } from "../../api/modules/ExpenseService";
 import { ExpenseSourceService } from "../../api/modules/ExpenseSourceService";
@@ -20,6 +25,7 @@ import type {
   ExpenseCategory,
   ExpenseSource,
 } from "../../api/modules/types";
+import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
 import { formatCompactCurrency, formatCurrency } from "../../utils/format";
 
@@ -38,19 +44,18 @@ type SupplierTotal = {
   count: number;
 };
 
-const pageHeaderStyle: CSSProperties = {
+const pageHeaderRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  gap: 16,
   marginBottom: 20,
 };
 
-const pageTitleStyle: CSSProperties = {
-  margin: 0,
-  color: "#102A43",
-  fontSize: 26,
-};
-
-const pageDescriptionStyle: CSSProperties = {
-  margin: "4px 0 0",
-  color: "#627D98",
+const budgetBoxesStyle: CSSProperties = {
+  display: "flex",
+  gap: 16,
 };
 
 const filterRowStyle: CSSProperties = {
@@ -67,37 +72,6 @@ const chartsGridStyle: CSSProperties = {
   display: "grid",
   gap: 16,
   marginBottom: 16,
-};
-
-function labelStyle() {
-  return { fill: "#102A43", fontSize: 12, fontWeight: 600 };
-}
-
-const barAxisConfig = {
-  x: {
-    title: false,
-    labelFill: "#1F2933",
-    labelFontSize: 12,
-    labelFontWeight: 500,
-  },
-  y: false as const,
-};
-
-const columnAxisConfig = {
-  x: {
-    title: false,
-    labelFill: "#1F2933",
-    labelFontSize: 12,
-    labelFontWeight: 500,
-  },
-  y: {
-    title: false,
-    grid: { style: { stroke: "#E5E7EB", lineWidth: 1 } },
-    labelFill: "#1F2933",
-    labelFontSize: 12,
-    labelFontWeight: 500,
-    labelFormatter: formatCompactCurrency,
-  },
 };
 
 function breakdownHeight(itemCount: number) {
@@ -124,18 +98,69 @@ function buildBreakdown(
 }
 
 export function DashboardPage() {
+  const { token } = theme.useToken();
+
+  const pageTitleStyle: CSSProperties = {
+    margin: 0,
+    color: token.colorTextHeading,
+    fontSize: 26,
+  };
+
+  const pageDescriptionStyle: CSSProperties = {
+    margin: "4px 0 0",
+    color: token.colorTextSecondary,
+  };
+
+  function labelStyle() {
+    return { fill: token.colorTextHeading, fontSize: 12, fontWeight: 600 };
+  }
+
+  const barAxisConfig = {
+    x: {
+      title: false,
+      labelFill: token.colorText,
+      labelFontSize: 12,
+      labelFontWeight: 500,
+    },
+    y: false as const,
+  };
+
+  const columnAxisConfig = {
+    x: {
+      title: false,
+      labelFill: token.colorText,
+      labelFontSize: 12,
+      labelFontWeight: 500,
+    },
+    y: {
+      title: false,
+      grid: { style: { stroke: token.colorBorder, lineWidth: 1 } },
+      labelFill: token.colorText,
+      labelFontSize: 12,
+      labelFontWeight: 500,
+      labelFormatter: formatCompactCurrency,
+    },
+  };
+
   usePrivateMobileHeader("Dashboard");
   const screens = Grid.useBreakpoint();
   const isDesktop = Boolean(screens.md);
   const [messageApi, contextHolder] = message.useMessage();
+  const { activeGroupId, activeGroup } = useActiveGroup();
 
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [sources, setSources] = useState<ExpenseSource[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const dashboardRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    if (!activeGroupId) {
+      return;
+    }
+
     Promise.all([
       ExpenseCategoryService.list(),
       ExpenseSourceService.list(),
@@ -152,7 +177,7 @@ export function DashboardPage() {
         );
       })
       .finally(() => setLoading(false));
-  }, [messageApi]);
+  }, [messageApi, activeGroupId]);
 
   const categoryMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category])),
@@ -185,6 +210,13 @@ export function DashboardPage() {
   );
   const averageTicket =
     filteredExpenses.length > 0 ? totalAmount / filteredExpenses.length : 0;
+
+  const projectTotal = useMemo(
+    () => expenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [expenses],
+  );
+  const plannedSpending = activeGroup?.plannedSpending ?? 0;
+  const freeRevenue = plannedSpending - projectTotal;
 
   const categoryBreakdown = useMemo(
     () =>
@@ -251,17 +283,116 @@ export function DashboardPage() {
 
   const hasData = filteredExpenses.length > 0;
 
+  const exportPdf = async () => {
+    if (!dashboardRef.current) {
+      return;
+    }
+
+    setExportingPdf(true);
+    try {
+      const dataUrl = await toPng(dashboardRef.current, {
+        pixelRatio: 2,
+        backgroundColor: token.colorBgLayout,
+        filter: (node) =>
+          !(node instanceof HTMLElement && node.classList.contains("export-ignore")),
+      });
+
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () =>
+          reject(new Error("Erro ao processar imagem do dashboard."));
+        image.src = dataUrl;
+      });
+
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidthMm = pageWidth;
+      const imgHeightMm = (image.height * imgWidthMm) / image.width;
+
+      let heightLeft = imgHeightMm;
+      let position = 0;
+
+      pdf.addImage(dataUrl, "PNG", 0, position, imgWidthMm, imgHeightMm);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeightMm;
+        pdf.addPage();
+        pdf.addImage(dataUrl, "PNG", 0, position, imgWidthMm, imgHeightMm);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save("dashboard.pdf");
+    } catch (error) {
+      messageApi.error(
+        error instanceof Error ? error.message : "Erro ao exportar dashboard.",
+      );
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   return (
-    <section>
+    <section ref={dashboardRef}>
       {contextHolder}
-      {isDesktop && (
-        <div style={pageHeaderStyle}>
-          <h1 style={pageTitleStyle}>Dashboard</h1>
-          <p style={pageDescriptionStyle}>
-            Resumo do que foi gasto, quanto e como, na obra.
-          </p>
+      <div style={pageHeaderRowStyle}>
+        {isDesktop && (
+          <div>
+            <h1 style={pageTitleStyle}>Dashboard</h1>
+            <p style={pageDescriptionStyle}>
+              Resumo do que foi gasto, quanto e como, na obra.
+            </p>
+          </div>
+        )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "stretch",
+            gap: 16,
+            flexWrap: "wrap",
+            flex: isDesktop ? "0 0 auto" : "1 1 100%",
+          }}
+        >
+          <Card
+            className="export-ignore"
+            styles={{
+              body: { height: "100%", display: "flex", alignItems: "center" },
+            }}
+          >
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={exportPdf}
+              loading={exportingPdf}
+            >
+              Exportar PDF
+            </Button>
+          </Card>
+          <div style={budgetBoxesStyle}>
+            <Card loading={loading} style={{ flex: 1, minWidth: 160 }}>
+              <Statistic
+                title="Gasto Planejado"
+                value={plannedSpending}
+                formatter={() => formatCurrency(plannedSpending)}
+              />
+            </Card>
+            <Card loading={loading} style={{ flex: 1, minWidth: 160 }}>
+              <Statistic
+                title="Receita livre"
+                value={freeRevenue}
+                formatter={() => formatCurrency(freeRevenue)}
+                styles={{
+                  content: {
+                    color:
+                      freeRevenue < 0 ? token.colorError : token.colorSuccess,
+                  },
+                }}
+              />
+            </Card>
+          </div>
         </div>
-      )}
+      </div>
 
       <div style={filterRowStyle}>
         <RangePicker

@@ -12,6 +12,7 @@ export type User = {
   emailValidated: boolean;
   name: string | null;
   profileImage: ProfileImage | null;
+  groupIds: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -20,11 +21,56 @@ export type MessageResponse = {
   message: string;
 };
 
+export type PlannedSpendingHistoryEntry = {
+  value: number;
+  previousValue: number | null;
+  changedBy: string;
+  changedByName: string | null;
+  changedAt: string;
+};
+
+export type Group = {
+  id: string;
+  name: string;
+  description: string | null;
+  owner: string;
+  isPersonal: boolean;
+  isOwner: boolean;
+  memberCount: number;
+  plannedSpending: number;
+  plannedSpendingHistory: PlannedSpendingHistoryEntry[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GroupMember = User & {
+  isOwner: boolean;
+};
+
+export type SentGroupInvite = {
+  id: string;
+  groupId: string;
+  groupName: string;
+  inviteeEmail: string;
+  status: string;
+  createdAt: string;
+};
+
+export type ReceivedGroupInvite = {
+  id: string;
+  groupId: string;
+  groupName: string;
+  inviterName: string;
+  status: string;
+  createdAt: string;
+};
+
 export type ExpenseCategory = {
   id: string;
   name: string;
   color: string | null;
   owner: string;
+  groupId: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -33,6 +79,7 @@ export type ExpenseSource = {
   id: string;
   name: string;
   owner: string;
+  groupId: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -57,7 +104,9 @@ export type Expense = {
   paymentMethod: PaymentMethod;
   amount: number;
   notes: string | null;
+  comprovante: ProfileImage | null;
   owner: string;
+  groupId: string;
   createdAt: string;
   updatedAt: string;
 };

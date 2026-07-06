@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, apiDownload } from "./api";
 import type {
   Expense,
   ExpenseImportCommitResponse,
@@ -31,6 +31,9 @@ export const ExpenseService = {
   list() {
     return api<ExpenseListResponse>("/expenses");
   },
+  exportXlsx() {
+    return apiDownload("/expenses/export", "lancamentos.xlsx");
+  },
   create(payload: CreateExpensePayload) {
     return api<ExpenseResponse>("/expenses", {
       method: "POST",
@@ -46,6 +49,14 @@ export const ExpenseService = {
   remove(id: string) {
     return api<MessageResponse>(`/expenses/${id}`, {
       method: "DELETE",
+    });
+  },
+  uploadComprovante(id: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api<ExpenseResponse>(`/expenses/${id}/comprovante`, {
+      method: "POST",
+      body: formData,
     });
   },
   importPreview(file: File) {

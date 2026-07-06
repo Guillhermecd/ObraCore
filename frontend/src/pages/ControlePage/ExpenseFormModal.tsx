@@ -1,4 +1,8 @@
-import { PlusOutlined } from "@ant-design/icons";
+import {
+  PaperClipOutlined,
+  PlusOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import {
   Button,
   DatePicker,
@@ -7,7 +11,9 @@ import {
   InputNumber,
   Modal,
   Select,
+  Upload,
   message,
+  type UploadProps,
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useEffect, useState, type CSSProperties } from "react";
@@ -42,6 +48,12 @@ const fieldsGridStyle: CSSProperties = {
 
 const selectRowStyle: CSSProperties = {
   display: "flex",
+  gap: 8,
+};
+
+const attachmentRowStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
   gap: 8,
 };
 
@@ -95,6 +107,7 @@ export function ExpenseFormModal({
   const [messageApi, contextHolder] = message.useMessage();
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
+  const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
 
   const {
     control,
@@ -115,6 +128,7 @@ export function ExpenseFormModal({
   }, [open, mode, expense, reset]);
 
   const close = () => {
+    setComprovanteFile(null);
     onClose();
   };
 
@@ -140,13 +154,29 @@ export function ExpenseFormModal({
     };
 
     try {
+      let expenseId: string;
       if (mode === "edit" && expense) {
         await ExpenseService.update(expense.id, payload);
+        expenseId = expense.id;
         messageApi.success("Lançamento atualizado.");
       } else {
-        await ExpenseService.create(payload);
+        const { expense: created } = await ExpenseService.create(payload);
+        expenseId = created.id;
         messageApi.success("Lançamento cadastrado.");
       }
+
+      if (comprovanteFile) {
+        try {
+          await ExpenseService.uploadComprovante(expenseId, comprovanteFile);
+        } catch (error) {
+          messageApi.error(
+            error instanceof Error
+              ? error.message
+              : "Erro ao anexar comprovante.",
+          );
+        }
+      }
+
       onSaved();
       close();
     } catch (error) {
@@ -154,6 +184,13 @@ export function ExpenseFormModal({
         error instanceof Error ? error.message : "Erro ao salvar lançamento.",
       );
     }
+  };
+
+  const handleComprovanteSelected: UploadProps["beforeUpload"] = (
+    selectedFile,
+  ) => {
+    setComprovanteFile(selectedFile);
+    return false;
   };
 
   return (
@@ -320,6 +357,42 @@ export function ExpenseFormModal({
               </Form.Item>
             )}
           />
+
+          <Form.Item label="Comprovante">
+            <div style={attachmentRowStyle}>
+              <Upload
+                accept=".pdf,.jpg,.jpeg,.png"
+                maxCount={1}
+                showUploadList={false}
+                beforeUpload={handleComprovanteSelected}
+              >
+                <Button icon={<PaperClipOutlined />}>
+                  {comprovanteFile ? "Trocar arquivo" : "Anexar comprovante"}
+                </Button>
+              </Upload>
+              {comprovanteFile && (
+                <>
+                  <span>{comprovanteFile.name}</span>
+                  <Button
+                    type="text"
+                    danger
+                    onClick={() => setComprovanteFile(null)}
+                  >
+                    Remover
+                  </Button>
+                </>
+              )}
+              {!comprovanteFile && mode === "edit" && expense?.comprovante?.url && (
+                <a
+                  href={expense.comprovante.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <UploadOutlined /> Ver comprovante atual
+                </a>
+              )}
+            </div>
+          </Form.Item>
 
           <Button type="primary" htmlType="submit" loading={isSubmitting} block>
             {mode === "edit" ? "Salvar alterações" : "Cadastrar lançamento"}

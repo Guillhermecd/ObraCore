@@ -1,4 +1,5 @@
-import { Button, Modal, Popconfirm, Tag, Typography, message } from "antd";
+import { PaperClipOutlined } from "@ant-design/icons";
+import { Button, Modal, Popconfirm, Tag, Typography, message, theme } from "antd";
 import dayjs from "dayjs";
 import type { CSSProperties } from "react";
 import { ExpenseService } from "../../api/modules/ExpenseService";
@@ -11,23 +12,9 @@ import { formatCurrency } from "../../utils/format";
 
 const { Text } = Typography;
 
-const rowStyle: CSSProperties = {
-  padding: "10px 0",
-  borderBottom: "1px solid #E5E7EB",
-};
-
-const lastRowStyle: CSSProperties = {
-  padding: "10px 0",
-};
-
 const labelStyle: CSSProperties = {
   display: "block",
   marginBottom: 4,
-};
-
-const valueStyle: CSSProperties = {
-  color: "#102A43",
-  fontSize: 15,
 };
 
 type Props = {
@@ -47,11 +34,26 @@ export function ExpenseDetailModal({
   onEdit,
   onDeleted,
 }: Props) {
+  const { token } = theme.useToken();
   const [messageApi, contextHolder] = message.useMessage();
 
   if (!expense) {
     return null;
   }
+
+  const rowStyle: CSSProperties = {
+    padding: "10px 0",
+    borderBottom: `1px solid ${token.colorBorderSecondary || token.colorBorder}`,
+  };
+
+  const lastRowStyle: CSSProperties = {
+    padding: "10px 0",
+  };
+
+  const valueStyle: CSSProperties = {
+    color: token.colorTextHeading,
+    fontSize: 15,
+  };
 
   const category = categories.find((item) => item.id === expense.categoryId);
   const source = sources.find((item) => item.id === expense.sourceId);
@@ -133,11 +135,29 @@ export function ExpenseDetailModal({
         </Text>
         <div style={valueStyle}>{formatCurrency(expense.amount)}</div>
       </div>
-      <div style={lastRowStyle}>
+      <div style={rowStyle}>
         <Text style={labelStyle} type="secondary">
           Observações
         </Text>
         <div style={valueStyle}>{expense.notes || "-"}</div>
+      </div>
+      <div style={lastRowStyle}>
+        <Text style={labelStyle} type="secondary">
+          Comprovante
+        </Text>
+        <div style={valueStyle}>
+          {expense.comprovante?.url ? (
+            <a
+              href={expense.comprovante.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <PaperClipOutlined /> {expense.comprovante.originalFilename || "Ver comprovante"}
+            </a>
+          ) : (
+            "-"
+          )}
+        </div>
       </div>
     </Modal>
   );

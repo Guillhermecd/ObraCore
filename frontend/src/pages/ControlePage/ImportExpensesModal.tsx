@@ -9,6 +9,7 @@ import {
   Typography,
   Upload,
   message,
+  theme,
   type TableColumnsType,
   type UploadProps,
 } from "antd";
@@ -46,10 +47,6 @@ const TEMPLATE_EXAMPLE_ROW = [
   "Compra de fiação",
 ];
 
-const hintStyle: CSSProperties = {
-  color: "#627D98",
-};
-
 const previewFooterStyle: CSSProperties = {
   display: "flex",
   justifyContent: "flex-end",
@@ -80,6 +77,10 @@ type Props = {
 };
 
 export function ImportExpensesModal({ open, onClose, onImported }: Props) {
+  const { token } = theme.useToken();
+  const hintStyle: CSSProperties = {
+    color: token.colorTextSecondary,
+  };
   const [messageApi, contextHolder] = message.useMessage();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -280,11 +281,10 @@ export function ImportExpensesModal({ open, onClose, onImported }: Props) {
               style={{ marginBottom: 16 }}
               type={preview.summary.invalid > 0 ? "warning" : "success"}
               showIcon
-              message={`${preview.summary.valid} de ${preview.summary.total} linha(s) válida(s)${
-                preview.summary.invalid > 0
+              message={`${preview.summary.valid} de ${preview.summary.total} linha(s) válida(s)${preview.summary.invalid > 0
                   ? `, ${preview.summary.invalid} com erro`
                   : ""
-              }.`}
+                }.`}
             />
             <Table
               rowKey="rowNumber"

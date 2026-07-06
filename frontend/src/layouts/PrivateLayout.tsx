@@ -3,6 +3,9 @@ import {
   LogoutOutlined,
   MenuOutlined,
   PieChartOutlined,
+  SunOutlined,
+  MoonOutlined,
+  TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
@@ -12,6 +15,8 @@ import {
   Layout,
   Menu,
   Modal,
+  Select,
+  theme,
   type MenuProps,
 } from "antd";
 import type { CSSProperties, ReactNode } from "react";
@@ -19,6 +24,9 @@ import { useCallback, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { authStorage } from "../api/modules/api";
 import { bimdColors } from "../theme";
+import { useTheme } from "../themeContext";
+import { GroupProvider } from "./GroupProvider";
+import { useActiveGroup } from "./groupContext";
 import {
   PrivateMobileHeaderContext,
   defaultPrivateMobileHeaderContent,
@@ -44,27 +52,6 @@ const collapsedLogoStyle: CSSProperties = {
   padding: "20px 12px",
 };
 
-const headerStyle: CSSProperties = {
-  height: 64,
-  background: bimdColors.white,
-  borderBottom: "1px solid #E5E7EB",
-  display: "grid",
-  gridTemplateColumns: "40px minmax(0, 1fr)",
-  columnGap: 12,
-  alignItems: "center",
-  padding: "0 24px",
-};
-
-const mobileHeaderTitleStyle: CSSProperties = {
-  fontWeight: 700,
-  color: "#102A43",
-  fontSize: 24,
-  textAlign: "left",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-};
-
 const drawerLogoStyle: CSSProperties = {
   width: 160,
   height: "auto",
@@ -80,7 +67,25 @@ const collapsedMenuWrapStyle: CSSProperties = {
   padding: "0 4px",
 };
 
-export function PrivateLayout() {
+function GroupSelect({ style }: Readonly<{ style?: CSSProperties }>) {
+  const { groups, activeGroupId, setActiveGroupId, loading } = useActiveGroup();
+
+  return (
+    <Select
+      value={activeGroupId ?? undefined}
+      loading={loading}
+      style={{ minWidth: 160, maxWidth: 240, ...style }}
+      onChange={setActiveGroupId}
+      popupMatchSelectWidth={false}
+      options={groups.map((group) => ({
+        value: group.id,
+        label: group.isPersonal ? "Pessoal" : group.name,
+      }))}
+    />
+  );
+}
+
+function PrivateLayoutContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const screens = Grid.useBreakpoint();
@@ -91,6 +96,31 @@ export function PrivateLayout() {
   const [mobileHeaderContent, setMobileHeaderContent] = useState<ReactNode>(
     defaultPrivateMobileHeaderContent,
   );
+
+  const { themeMode, toggleTheme } = useTheme();
+  const { token } = theme.useToken();
+
+  const currentHeaderStyle: CSSProperties = useMemo(() => ({
+    height: 64,
+    background: token.colorBgContainer,
+    borderBottom: `1px solid ${token.colorBorderSecondary || token.colorBorder}`,
+    display: isDesktop ? "flex" : "grid",
+    gridTemplateColumns: isDesktop ? undefined : "40px minmax(0, 1fr) auto",
+    columnGap: 12,
+    alignItems: "center",
+    justifyContent: isDesktop ? "flex-end" : undefined,
+    padding: "0 24px",
+  }), [isDesktop, token]);
+
+  const currentMobileHeaderTitleStyle: CSSProperties = useMemo(() => ({
+    fontWeight: 700,
+    color: token.colorTextHeading,
+    fontSize: 24,
+    textAlign: "left",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  }), [token]);
 
   const logout = useCallback(() => {
     authStorage.clear();
@@ -124,6 +154,15 @@ export function PrivateLayout() {
         onClick: () => {
           setDrawerOpen(false);
           navigate("/controle");
+        },
+      },
+      {
+        key: "/grupos",
+        icon: <TeamOutlined />,
+        label: "Grupos",
+        onClick: () => {
+          setDrawerOpen(false);
+          navigate("/grupos");
         },
       },
       {
@@ -170,10 +209,6 @@ export function PrivateLayout() {
     [resetMobileHeaderContent],
   );
 
-  if (!authStorage.getToken()) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-
   return (
     <PrivateMobileHeaderContext.Provider value={mobileHeaderContextValue}>
       <Layout style={layoutStyle}>
@@ -184,7 +219,7 @@ export function PrivateLayout() {
             collapsible
             collapsed={collapsed}
             onCollapse={setCollapsed}
-            style={{ background: bimdColors.navy }}
+            style={{ background: themeMode === "dark" ? "#111827" : bimdColors.navy }}
           >
             <div style={collapsed ? collapsedLogoStyle : logoStyle}>
               <img
@@ -205,16 +240,37 @@ export function PrivateLayout() {
           </Sider>
         )}
         <Layout>
-          {!isDesktop && (
-            <Header style={headerStyle}>
+          <Header style={currentHeaderStyle}>
+            {!isDesktop && (
+              <>
+                <Button
+                  type="text"
+                  icon={<MenuOutlined />}
+                  onClick={() => setDrawerOpen(true)}
+                />
+                <span style={currentMobileHeaderTitleStyle}>
+                  {mobileHeaderContent}
+                </span>
+              </>
+            )}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                justifyContent: "flex-end",
+                width: isDesktop ? "auto" : "100%",
+              }}
+            >
               <Button
                 type="text"
-                icon={<MenuOutlined />}
-                onClick={() => setDrawerOpen(true)}
+                icon={themeMode === "dark" ? <SunOutlined /> : <MoonOutlined />}
+                onClick={toggleTheme}
+                title={themeMode === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
               />
-              <span style={mobileHeaderTitleStyle}>{mobileHeaderContent}</span>
-            </Header>
-          )}
+              <GroupSelect style={isDesktop ? undefined : { flex: 1, minWidth: 120 }} />
+            </div>
+          </Header>
           <Content style={{ padding: isDesktop ? 24 : 16 }}>
             <Outlet />
           </Content>
@@ -233,9 +289,9 @@ export function PrivateLayout() {
           onClose={() => setDrawerOpen(false)}
           closable={false}
           styles={{
-            body: { padding: "12px 0", background: bimdColors.navy },
+            body: { padding: "12px 0", background: themeMode === "dark" ? "#111827" : bimdColors.navy },
             header: {
-              background: bimdColors.navy,
+              background: themeMode === "dark" ? "#111827" : bimdColors.navy,
               borderBottom: 0,
               padding: "24px 28px",
               textAlign: "center",
@@ -258,5 +314,21 @@ export function PrivateLayout() {
         </Modal>
       </Layout>
     </PrivateMobileHeaderContext.Provider>
+  );
+}
+
+export function PrivateLayout() {
+  const location = useLocation();
+
+  if (!authStorage.getToken()) {
+    return (
+      <Navigate to="/login" replace state={{ from: location.pathname }} />
+    );
+  }
+
+  return (
+    <GroupProvider>
+      <PrivateLayoutContent />
+    </GroupProvider>
   );
 }

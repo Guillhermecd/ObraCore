@@ -9,6 +9,7 @@ module.exports = {
     name: { type: 'string', required: true },
     color: { type: 'string', allowNull: true },
     owner: { type: 'string', required: true },
+    groupId: { type: 'string', required: true },
   },
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {

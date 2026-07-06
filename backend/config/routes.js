@@ -16,6 +16,20 @@ module.exports.routes = {
 
   'GET /api/storage/presigned-url': { action: 'storage/presigned-url' },
 
+  'GET /api/groups': { action: 'groups/list' },
+  'POST /api/groups': { action: 'groups/create' },
+  'PATCH /api/groups/:id': { action: 'groups/update' },
+  'DELETE /api/groups/:id': { action: 'groups/remove' },
+  'GET /api/groups/:id/members': { action: 'groups/members' },
+  'DELETE /api/groups/:id/members/:userId': { action: 'groups/remove-member' },
+
+  'POST /api/group-invites': { action: 'group-invites/create' },
+  'GET /api/group-invites/sent': { action: 'group-invites/list-sent' },
+  'GET /api/group-invites/received': { action: 'group-invites/list-received' },
+  'POST /api/group-invites/:id/accept': { action: 'group-invites/accept' },
+  'POST /api/group-invites/:id/decline': { action: 'group-invites/decline' },
+  'POST /api/group-invites/:id/cancel': { action: 'group-invites/cancel' },
+
   'GET /api/expense-categories': { action: 'expense-categories/list' },
   'POST /api/expense-categories': { action: 'expense-categories/create' },
   'DELETE /api/expense-categories/:id': { action: 'expense-categories/remove' },
@@ -25,9 +39,11 @@ module.exports.routes = {
   'DELETE /api/expense-sources/:id': { action: 'expense-sources/remove' },
 
   'GET /api/expenses': { action: 'expenses/list' },
+  'GET /api/expenses/export': { action: 'expenses/export' },
   'POST /api/expenses': { action: 'expenses/create' },
   'PATCH /api/expenses/:id': { action: 'expenses/update' },
   'DELETE /api/expenses/:id': { action: 'expenses/remove' },
+  'POST /api/expenses/:id/comprovante': { action: 'expenses/upload-comprovante' },
   'POST /api/expenses/import/preview': { action: 'expenses/import-preview' },
   'POST /api/expenses/import/commit': { action: 'expenses/import-commit' },
 };

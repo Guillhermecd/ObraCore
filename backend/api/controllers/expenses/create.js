@@ -16,12 +16,14 @@ module.exports = async function create(req, res) {
     return res.badRequest({ message: 'Forma de pagamento inválida.' });
   }
 
-  const category = await ExpenseCategory.findOne({ id: categoryId, owner: req.user.id });
+  const groupId = await sails.services.groupservice.resolveGroupId(req);
+
+  const category = await ExpenseCategory.findOne({ id: categoryId, groupId });
   if (!category) {
     return res.badRequest({ message: 'Categoria inválida.' });
   }
 
-  const source = await ExpenseSource.findOne({ id: sourceId, owner: req.user.id });
+  const source = await ExpenseSource.findOne({ id: sourceId, groupId });
   if (!source) {
     return res.badRequest({ message: 'Fonte inválida.' });
   }
@@ -35,6 +37,7 @@ module.exports = async function create(req, res) {
     amount: numericAmount,
     notes: notes ? notes.trim() : null,
     owner: req.user.id,
+    groupId,
   }).fetch();
 
   return res.status(201).json({ expense });

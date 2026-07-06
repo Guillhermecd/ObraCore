@@ -32,6 +32,7 @@ module.exports = {
       emailValidated: user.emailValidated,
       name: user.name || null,
       profileImage: user.profileImage || null,
+      groupIds: Array.isArray(user.groupIds) ? user.groupIds : [],
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -85,13 +86,15 @@ module.exports = {
 
     const verification = this.createEmailVerification();
 
-    await User.create({
+    const user = await User.create({
       email: normalizedEmail,
       password,
       name: process.env.INITIAL_USER_NAME || 'Administrador',
       emailValidated: true,
       ...verification,
-    });
+    }).fetch();
+
+    await sails.services.groupservice.ensurePersonalGroup(user);
 
     sails.log.info(`Usuário inicial criado: ${normalizedEmail}`);
   },

@@ -16,6 +16,8 @@
     "@ant-design/icons": "^6.1.0",
     "antd": "^6.1.1",
     "dayjs": "^1.11.19",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hook-form": "^7.69.0",

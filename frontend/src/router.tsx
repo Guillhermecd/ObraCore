@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { PrivateLayout } from "./layouts/PrivateLayout";
 import { ControlePage } from "./pages/ControlePage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { GroupsPage } from "./pages/GroupsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -34,6 +35,10 @@ export const router = createBrowserRouter([
       {
         path: "/controle",
         element: <ControlePage />,
+      },
+      {
+        path: "/grupos",
+        element: <GroupsPage />,
       },
       {
         path: "/profile",

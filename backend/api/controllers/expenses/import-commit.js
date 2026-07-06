@@ -33,9 +33,10 @@ module.exports = async function importCommit(req, res) {
       return res.status(201).json({ imported: 0, failed });
     }
 
+    const groupId = await sails.services.groupservice.resolveGroupId(req);
     const [categories, sources] = await Promise.all([
-      ExpenseCategory.find({ owner: req.user.id }),
-      ExpenseSource.find({ owner: req.user.id }),
+      ExpenseCategory.find({ groupId }),
+      ExpenseSource.find({ groupId }),
     ]);
 
     const categoryByName = new Map(
@@ -64,7 +65,7 @@ module.exports = async function importCommit(req, res) {
 
     const createdCategories = await Promise.all(
       Array.from(missingCategoryNames.values()).map((name) =>
-        ExpenseCategory.create({ name, owner: req.user.id }).fetch(),
+        ExpenseCategory.create({ name, owner: req.user.id, groupId }).fetch(),
       ),
     );
     createdCategories.forEach((category) => {
@@ -73,7 +74,7 @@ module.exports = async function importCommit(req, res) {
 
     const createdSources = await Promise.all(
       Array.from(missingSourceNames.values()).map((name) =>
-        ExpenseSource.create({ name, owner: req.user.id }).fetch(),
+        ExpenseSource.create({ name, owner: req.user.id, groupId }).fetch(),
       ),
     );
     createdSources.forEach((source) => {
@@ -89,6 +90,7 @@ module.exports = async function importCommit(req, res) {
       amount: row.amount,
       notes: row.notes,
       owner: req.user.id,
+      groupId,
     }));
 
     // Expense.createEach() aciona o lifecycle hook beforeCreate com uma

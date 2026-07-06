@@ -1,5 +1,5 @@
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
-import { Button, Card, Form, Grid, Input, message } from "antd";
+import { Button, Card, Form, Grid, Input, message, theme } from "antd";
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -12,15 +12,6 @@ import { ForgotPasswordModal } from "./ForgotPasswordModal";
 type LoginForm = {
   email: string;
   password: string;
-};
-
-const authShellStyle: CSSProperties = {
-  minHeight: "100vh",
-  display: "grid",
-  placeItems: "center",
-  padding: 24,
-  background:
-    "linear-gradient(135deg, rgba(0, 80, 255, 0.08), rgba(6, 191, 255, 0.08)), #F4F6F8",
 };
 
 const authPanelStyle: CSSProperties = {
@@ -49,12 +40,22 @@ const authActionsStyle: CSSProperties = {
   textAlign: "center",
 };
 
-const authActionTextStyle: CSSProperties = {
-  margin: 0,
-  color: "#627D98",
-};
-
 export function LoginPage() {
+  const { token } = theme.useToken();
+
+  const authShellStyle: CSSProperties = {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    padding: 24,
+    background: `linear-gradient(135deg, rgba(0, 80, 255, 0.08), rgba(6, 191, 255, 0.08)), ${token.colorBgLayout}`,
+  };
+
+  const authActionTextStyle: CSSProperties = {
+    margin: 0,
+    color: token.colorTextSecondary,
+  };
+
   const navigate = useNavigate();
   const screens = Grid.useBreakpoint();
   const [messageApi, contextHolder] = message.useMessage();
@@ -70,7 +71,7 @@ export function LoginPage() {
     try {
       const response = await AuthService.login(values);
       authStorage.setSession(response.token, response.user);
-      navigate("/profile", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       messageApi.error(
         error instanceof Error ? error.message : "Erro ao entrar.",

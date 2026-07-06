@@ -5,9 +5,10 @@ module.exports = async function create(req, res) {
     return res.badRequest({ message: 'Nome da categoria é obrigatório.' });
   }
 
+  const groupId = await sails.services.groupservice.resolveGroupId(req);
   const normalizedName = name.trim();
   const existingCategory = await ExpenseCategory.findOne({
-    owner: req.user.id,
+    groupId,
     name: normalizedName,
   });
 
@@ -19,6 +20,7 @@ module.exports = async function create(req, res) {
     name: normalizedName,
     color: color || null,
     owner: req.user.id,
+    groupId,
   }).fetch();
 
   return res.status(201).json({ category });

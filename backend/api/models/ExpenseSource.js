@@ -8,6 +8,7 @@ module.exports = {
   attributes: {
     name: { type: 'string', required: true },
     owner: { type: 'string', required: true },
+    groupId: { type: 'string', required: true },
   },
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {

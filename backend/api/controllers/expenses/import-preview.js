@@ -24,9 +24,10 @@ module.exports = async function importPreview(req, res) {
     const buffer = await fs.promises.readFile(file.fd);
     const parsed = await sails.services.expenseimportservice.parseFile(buffer, file.filename);
 
+    const groupId = await sails.services.groupservice.resolveGroupId(req);
     const [categories, sources] = await Promise.all([
-      ExpenseCategory.find({ owner: req.user.id }),
-      ExpenseSource.find({ owner: req.user.id }),
+      ExpenseCategory.find({ groupId }),
+      ExpenseSource.find({ groupId }),
     ]);
 
     const categoryNames = new Set(categories.map((category) => category.name.trim().toLowerCase()));

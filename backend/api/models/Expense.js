@@ -13,7 +13,9 @@ module.exports = {
     paymentMethod: { type: 'string', required: true },
     amount: { type: 'number', required: true },
     notes: { type: 'string', allowNull: true },
+    comprovante: { type: 'json' },
     owner: { type: 'string', required: true },
+    groupId: { type: 'string', required: true },
   },
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {

@@ -8,7 +8,7 @@ module.exports.security = {
     allRoutes: true,
     allowOrigins: origins,
     allowCredentials: false,
-    allowRequestHeaders: 'content-type,authorization',
+    allowRequestHeaders: 'content-type,authorization,x-group-id',
   },
   csrf: false,
 };

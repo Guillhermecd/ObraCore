@@ -1,5 +1,6 @@
 import {
   DeleteOutlined,
+  DownloadOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
@@ -13,6 +14,7 @@ import {
   Table,
   Tag,
   message,
+  theme,
   type TableColumnsType,
 } from "antd";
 import dayjs from "dayjs";
@@ -26,6 +28,7 @@ import type {
   ExpenseCategory,
   ExpenseSource,
 } from "../../api/modules/types";
+import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
 import { formatCurrency } from "../../utils/format";
 import { ExpenseDetailModal } from "./ExpenseDetailModal";
@@ -46,33 +49,37 @@ const pageHeaderRowStyle: CSSProperties = {
   marginBottom: 20,
 };
 
-const pageTitleStyle: CSSProperties = {
-  margin: 0,
-  color: "#102A43",
-  fontSize: 26,
-};
-
-const pageDescriptionStyle: CSSProperties = {
-  margin: "4px 0 0",
-  color: "#627D98",
-};
-
-const bulkActionBarStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 12,
-  marginBottom: 12,
-  padding: "8px 12px",
-  background: "#F4F6F8",
-  borderRadius: 8,
-};
-
 export function ControlePage() {
+  const { token } = theme.useToken();
+  const pageTitleStyle: CSSProperties = {
+    margin: 0,
+    color: token.colorTextHeading,
+    fontSize: 26,
+  };
+
+  const pageDescriptionStyle: CSSProperties = {
+    margin: "4px 0 0",
+    color: token.colorTextSecondary,
+  };
+
+  const bulkActionBarStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+    padding: "8px 12px",
+    background: token.colorBgLayout,
+    color: token.colorText,
+    border: `1px solid ${token.colorBorder}`,
+    borderRadius: 8,
+  };
+
   const screens = Grid.useBreakpoint();
   const isDesktop = Boolean(screens.md);
   usePrivateMobileHeader("Controle");
   const [messageApi, contextHolder] = message.useMessage();
+  const { activeGroupId } = useActiveGroup();
 
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [sources, setSources] = useState<ExpenseSource[]>([]);
@@ -85,8 +92,13 @@ export function ControlePage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
+    if (!activeGroupId) {
+      return;
+    }
+
     Promise.all([
       ExpenseCategoryService.list(),
       ExpenseSourceService.list(),
@@ -103,7 +115,7 @@ export function ControlePage() {
         );
       })
       .finally(() => setLoading(false));
-  }, [messageApi, refreshKey]);
+  }, [messageApi, refreshKey, activeGroupId]);
 
   const categoryMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category])),
@@ -115,6 +127,19 @@ export function ControlePage() {
   );
 
   const refresh = () => setRefreshKey((key) => key + 1);
+
+  const exportXlsx = async () => {
+    setExporting(true);
+    try {
+      await ExpenseService.exportXlsx();
+    } catch (error) {
+      messageApi.error(
+        error instanceof Error ? error.message : "Erro ao exportar planilha.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const bulkDelete = async () => {
     setBulkDeleting(true);
@@ -217,6 +242,13 @@ export function ControlePage() {
             onClick={() => setImportModalOpen(true)}
           >
             Importar planilha
+          </Button>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={exportXlsx}
+            loading={exporting}
+          >
+            Exportar planilha
           </Button>
         </Space>
       </div>

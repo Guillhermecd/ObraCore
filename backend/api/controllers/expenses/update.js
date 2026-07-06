@@ -1,5 +1,6 @@
 module.exports = async function update(req, res) {
-  const expense = await Expense.findOne({ id: req.params.id, owner: req.user.id });
+  const groupId = await sails.services.groupservice.resolveGroupId(req);
+  const expense = await Expense.findOne({ id: req.params.id, groupId });
 
   if (!expense) {
     return res.status(404).json({ message: 'Lançamento não encontrado.' });
@@ -13,7 +14,7 @@ module.exports = async function update(req, res) {
   }
 
   if (categoryId !== undefined) {
-    const category = await ExpenseCategory.findOne({ id: categoryId, owner: req.user.id });
+    const category = await ExpenseCategory.findOne({ id: categoryId, groupId });
     if (!category) {
       return res.badRequest({ message: 'Categoria inválida.' });
     }
@@ -21,7 +22,7 @@ module.exports = async function update(req, res) {
   }
 
   if (sourceId !== undefined) {
-    const source = await ExpenseSource.findOne({ id: sourceId, owner: req.user.id });
+    const source = await ExpenseSource.findOne({ id: sourceId, groupId });
     if (!source) {
       return res.badRequest({ message: 'Fonte inválida.' });
     }

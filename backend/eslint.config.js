@@ -18,6 +18,8 @@ module.exports = [
         ExpenseCategory: 'readonly',
         ExpenseSource: 'readonly',
         Expense: 'readonly',
+        Group: 'readonly',
+        GroupInvite: 'readonly',
       },
     },
     rules: {

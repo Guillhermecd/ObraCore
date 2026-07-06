@@ -1,12 +1,13 @@
 module.exports = async function remove(req, res) {
-  const source = await ExpenseSource.findOne({ id: req.params.id, owner: req.user.id });
+  const groupId = await sails.services.groupservice.resolveGroupId(req);
+  const source = await ExpenseSource.findOne({ id: req.params.id, groupId });
 
   if (!source) {
     return res.status(404).json({ message: 'Fonte não encontrada.' });
   }
 
   const expensesUsingSource = await Expense.count({
-    owner: req.user.id,
+    groupId,
     sourceId: source.id,
   });
 

@@ -29,6 +29,7 @@ module.exports = {
     emailVerificationExpiresAt: { type: 'string', allowNull: true },
     passwordResetToken: { type: 'string', allowNull: true },
     passwordResetExpiresAt: { type: 'string', allowNull: true },
+    groupIds: { type: 'json', defaultsTo: [] },
   },
 
   customToJSON() {

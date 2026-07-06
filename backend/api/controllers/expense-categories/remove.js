@@ -1,12 +1,13 @@
 module.exports = async function remove(req, res) {
-  const category = await ExpenseCategory.findOne({ id: req.params.id, owner: req.user.id });
+  const groupId = await sails.services.groupservice.resolveGroupId(req);
+  const category = await ExpenseCategory.findOne({ id: req.params.id, groupId });
 
   if (!category) {
     return res.status(404).json({ message: 'Categoria não encontrada.' });
   }
 
   const expensesUsingCategory = await Expense.count({
-    owner: req.user.id,
+    groupId,
     categoryId: category.id,
   });
 

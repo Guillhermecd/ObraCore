@@ -27,6 +27,7 @@ import type {
   ExpenseSource,
   PaymentMethod,
 } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 import { CreateCategoryModal } from "./CreateCategoryModal";
 import { CreateSourceModal } from "./CreateSourceModal";
 
@@ -169,20 +170,14 @@ export function ExpenseFormModal({
         try {
           await ExpenseService.uploadComprovante(expenseId, comprovanteFile);
         } catch (error) {
-          messageApi.error(
-            error instanceof Error
-              ? error.message
-              : "Erro ao anexar comprovante.",
-          );
+          messageApi.error(getErrorMessage(error, "Erro ao anexar comprovante."));
         }
       }
 
       onSaved();
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao salvar lançamento.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao salvar lançamento."));
     }
   };
 

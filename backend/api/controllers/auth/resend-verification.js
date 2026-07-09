@@ -5,7 +5,7 @@ module.exports = async function resendVerification(req, res) {
     return res.badRequest({ message: 'E-mail obrigatório.' });
   }
 
-  const user = await User.findOne({ email: requestedEmail.toLowerCase().trim() });
+  const user = await User.findOne({ email: sails.services.authservice.normalizeEmail(requestedEmail) });
 
   if (!user || user.emailValidated) {
     return res.json({ message: 'Se o e-mail precisar de validação, enviaremos uma nova mensagem.' });

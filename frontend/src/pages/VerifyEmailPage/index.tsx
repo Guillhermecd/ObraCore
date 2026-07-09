@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthService } from "../../api/modules/AuthService";
 import { authStorage } from "../../api/modules/api";
+import { getErrorMessage } from "../../utils/errors";
 
 type Status = "loading" | "success" | "error";
 
@@ -54,11 +55,7 @@ export function VerifyEmailPage() {
       })
       .catch((error: unknown) => {
         setStatus("error");
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : "Não foi possível validar o e-mail.",
-        );
+        setMessage(getErrorMessage(error, "Não foi possível validar o e-mail."));
       });
   }, [token]);
 

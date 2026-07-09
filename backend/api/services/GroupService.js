@@ -12,12 +12,41 @@ function buildPlannedSpendingHistoryEntry(value, previousValue, user) {
   };
 }
 
+/**
+ * Quando existe mais de um grupo Pessoal para o mesmo dono (dado legado ou
+ * corrida de concorrência em `ensurePersonalGroup`), escolhe o "de verdade":
+ * primeiro o que já tem membership, senão o que já tem algum lançamento,
+ * categoria ou fonte associado, senão o mais antigo. Nunca escolhe por
+ * ordem de criação quando algum candidato já tem dado real.
+ */
+async function resolveCanonicalPersonalGroup(groups, userId) {
+  for (const group of groups) {
+    if (await GroupMember.count({ group: group.id, user: userId })) {
+      return group;
+    }
+  }
+
+  for (const group of groups) {
+    const [expenseCount, categoryCount, sourceCount] = await Promise.all([
+      Expense.count({ groupId: group.id }),
+      ExpenseCategory.count({ groupId: group.id }),
+      ExpenseSource.count({ groupId: group.id }),
+    ]);
+    if (expenseCount > 0 || categoryCount > 0 || sourceCount > 0) {
+      return group;
+    }
+  }
+
+  return groups[0];
+}
+
 module.exports = {
-  isMember(userRecord, groupId) {
-    return toArray(userRecord && userRecord.groupIds).includes(groupId);
+  async isMember(userRecord, groupId) {
+    const count = await GroupMember.count({ user: userRecord.id, group: groupId });
+    return count > 0;
   },
 
-  serializeGroup(group, currentUserId) {
+  serializeGroup(group, currentUserId, memberCount) {
     return {
       id: group.id,
       name: group.name,
@@ -25,7 +54,7 @@ module.exports = {
       owner: group.owner,
       isPersonal: group.isPersonal,
       isOwner: group.owner === currentUserId,
-      memberCount: toArray(group.memberIds).length,
+      memberCount,
       plannedSpending: group.plannedSpending || 0,
       plannedSpendingHistory: toArray(group.plannedSpendingHistory),
       createdAt: group.createdAt,
@@ -89,7 +118,7 @@ module.exports = {
     const requestedGroupId = req.headers['x-group-id'];
     const userRecord = req.userRecord;
 
-    if (requestedGroupId && this.isMember(userRecord, requestedGroupId)) {
+    if (requestedGroupId && (await this.isMember(userRecord, requestedGroupId))) {
       return requestedGroupId;
     }
 
@@ -98,51 +127,37 @@ module.exports = {
   },
 
   async ensurePersonalGroup(userRecord) {
-    const groupIds = toArray(userRecord.groupIds);
+    const existingPersonalGroups = await Group.find({ owner: userRecord.id, isPersonal: true }).sort('createdAt ASC');
 
-    if (groupIds.length > 0) {
-      const existingGroups = await Group.find({ id: { in: groupIds } });
-      const personalGroup = existingGroups.find((group) => group.isPersonal);
-      if (personalGroup) {
-        return personalGroup;
-      }
+    let existingPersonalGroup;
+    if (existingPersonalGroups.length > 1) {
+      existingPersonalGroup = await resolveCanonicalPersonalGroup(existingPersonalGroups, userRecord.id);
+    } else {
+      existingPersonalGroup = existingPersonalGroups[0];
     }
 
-    const personalGroup = await Group.create({
+    const personalGroup = existingPersonalGroup || await Group.create({
       name: 'Pessoal',
       owner: userRecord.id,
-      memberIds: [userRecord.id],
       isPersonal: true,
     }).fetch();
 
-    const updatedGroupIds = [...groupIds, personalGroup.id];
-    await User.updateOne({ id: userRecord.id }).set({ groupIds: updatedGroupIds });
-    userRecord.groupIds = updatedGroupIds;
+    await GroupMember.findOrCreate(
+      { group: personalGroup.id, user: userRecord.id },
+      { group: personalGroup.id, user: userRecord.id },
+    );
 
     return personalGroup;
   },
 
   async addMember(group, userRecord) {
-    const memberIds = toArray(group.memberIds);
-    if (!memberIds.includes(userRecord.id)) {
-      await Group.updateOne({ id: group.id }).set({ memberIds: [...memberIds, userRecord.id] });
-    }
-
-    const groupIds = toArray(userRecord.groupIds);
-    if (!groupIds.includes(group.id)) {
-      await User.updateOne({ id: userRecord.id }).set({ groupIds: [...groupIds, group.id] });
-    }
+    await GroupMember.findOrCreate(
+      { group: group.id, user: userRecord.id },
+      { group: group.id, user: userRecord.id },
+    );
   },
 
   async removeMember(group, userRecord) {
-    const memberIds = toArray(group.memberIds);
-    await Group.updateOne({ id: group.id }).set({
-      memberIds: memberIds.filter((id) => id !== userRecord.id),
-    });
-
-    const groupIds = toArray(userRecord.groupIds);
-    await User.updateOne({ id: userRecord.id }).set({
-      groupIds: groupIds.filter((id) => id !== group.id),
-    });
+    await GroupMember.destroyOne({ group: group.id, user: userRecord.id });
   },
 };

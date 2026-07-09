@@ -2,6 +2,7 @@ import { Button, Form, Input, InputNumber, Modal, message } from "antd";
 import { Controller, useForm } from "react-hook-form";
 import { GroupService } from "../../api/modules/GroupService";
 import type { Group } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 
 type CreateGroupForm = {
   name: string;
@@ -42,9 +43,7 @@ export function CreateGroupModal({ open, onClose, onCreated }: Props) {
       onCreated(response.group);
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao criar grupo.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao criar grupo."));
     }
   };
 

@@ -2,16 +2,8 @@ const bcrypt = require('bcrypt');
 
 const SALT_ROUNDS = 12;
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function isBcryptHash(value) {
-  return typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
-}
-
 async function hashPasswordIfNeeded(valuesToSet) {
-  if (valuesToSet.password && !isBcryptHash(valuesToSet.password)) {
+  if (valuesToSet.password) {
     valuesToSet.password = await bcrypt.hash(valuesToSet.password, SALT_ROUNDS);
   }
 }
@@ -29,7 +21,7 @@ module.exports = {
     emailVerificationExpiresAt: { type: 'string', allowNull: true },
     passwordResetToken: { type: 'string', allowNull: true },
     passwordResetExpiresAt: { type: 'string', allowNull: true },
-    groupIds: { type: 'json', defaultsTo: [] },
+    memberships: { collection: 'groupmember', via: 'user' },
   },
 
   customToJSON() {
@@ -38,10 +30,7 @@ module.exports = {
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {
     try {
-      const timestamp = nowIso();
-      valuesToSet.createdAt = timestamp;
-      valuesToSet.updatedAt = timestamp;
-      valuesToSet.email = valuesToSet.email.toLowerCase().trim();
+      valuesToSet.email = sails.services.authservice.normalizeEmail(valuesToSet.email);
       await hashPasswordIfNeeded(valuesToSet);
       return proceed();
     } catch (error) {
@@ -51,9 +40,8 @@ module.exports = {
 
   beforeUpdate: async function beforeUpdate(valuesToSet, proceed) {
     try {
-      valuesToSet.updatedAt = nowIso();
       if (valuesToSet.email) {
-        valuesToSet.email = valuesToSet.email.toLowerCase().trim();
+        valuesToSet.email = sails.services.authservice.normalizeEmail(valuesToSet.email);
       }
       await hashPasswordIfNeeded(valuesToSet);
       return proceed();

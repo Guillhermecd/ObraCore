@@ -6,7 +6,7 @@ module.exports = async function forgotPassword(req, res) {
     return res.json({ message });
   }
 
-  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  const user = await User.findOne({ email: sails.services.authservice.normalizeEmail(email) });
 
   if (user) {
     const reset = sails.services.authservice.createPasswordReset();

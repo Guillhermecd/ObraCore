@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { AuthService } from "../../api/modules/AuthService";
 import { authStorage } from "../../api/modules/api";
+import { getErrorMessage } from "../../utils/errors";
 import { CreateAccountModal } from "./CreateAccountModal";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
 
@@ -73,9 +74,7 @@ export function LoginPage() {
       authStorage.setSession(response.token, response.user);
       navigate("/dashboard", { replace: true });
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao entrar.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao entrar."));
     }
   };
 

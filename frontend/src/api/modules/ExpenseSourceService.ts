@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { ExpenseSource, MessageResponse } from "./types";
+import type { ExpenseSource } from "./types";
 
 export type CreateExpenseSourcePayload = {
   name: string;
@@ -21,11 +21,6 @@ export const ExpenseSourceService = {
     return api<ExpenseSourceResponse>("/expense-sources", {
       method: "POST",
       body: JSON.stringify(payload),
-    });
-  },
-  remove(id: string) {
-    return api<MessageResponse>(`/expense-sources/${id}`, {
-      method: "DELETE",
     });
   },
 };

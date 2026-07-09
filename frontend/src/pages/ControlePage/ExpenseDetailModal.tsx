@@ -8,6 +8,7 @@ import type {
   ExpenseCategory,
   ExpenseSource,
 } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 import { formatCurrency } from "../../utils/format";
 
 const { Text } = Typography;
@@ -64,9 +65,7 @@ export function ExpenseDetailModal({
       messageApi.success("Lançamento excluído.");
       onDeleted();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao excluir lançamento.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao excluir lançamento."));
     }
   };
 

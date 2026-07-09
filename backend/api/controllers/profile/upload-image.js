@@ -1,20 +1,5 @@
-const fs = require('fs');
-
-function uploadFile(req) {
-  return new Promise((resolve, reject) => {
-    req.file('file').upload({ maxBytes: 5 * 1024 * 1024 }, (error, files) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve(files[0]);
-    });
-  });
-}
-
 module.exports = async function uploadImage(req, res) {
-  const file = await uploadFile(req);
+  const file = await sails.services.storageservice.receiveUpload(req);
 
   if (!file) {
     return res.badRequest({ message: 'Arquivo obrigatório.' });
@@ -34,6 +19,6 @@ module.exports = async function uploadImage(req, res) {
 
     return res.json({ user: sails.services.authservice.sanitizeUser(user) });
   } finally {
-    fs.unlink(file.fd, () => undefined);
+    sails.services.storageservice.cleanupUpload(file);
   }
 };

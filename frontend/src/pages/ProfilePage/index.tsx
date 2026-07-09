@@ -24,7 +24,9 @@ import { AuthService } from "../../api/modules/AuthService";
 import { ProfileService } from "../../api/modules/ProfileService";
 import { authStorage } from "../../api/modules/api";
 import type { User } from "../../api/modules/types";
+import { PageHeader } from "../../components/PageHeader";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
+import { getErrorMessage } from "../../utils/errors";
 
 type NameForm = {
   name: string;
@@ -44,10 +46,6 @@ type PasswordForm = {
 type ActiveModal = "name" | "email" | "password" | null;
 
 const { Text, Paragraph } = Typography;
-
-const pageHeaderStyle: CSSProperties = {
-  marginBottom: 20,
-};
 
 const profileAvatarStyle: CSSProperties = {
   display: "flex",
@@ -85,17 +83,6 @@ const profileInlineEditStyle: CSSProperties = {
 
 export function ProfilePage() {
   const { token } = theme.useToken();
-
-  const pageTitleStyle: CSSProperties = {
-    margin: 0,
-    color: token.colorTextHeading,
-    fontSize: 26,
-  };
-
-  const pageDescriptionStyle: CSSProperties = {
-    margin: "4px 0 0",
-    color: token.colorTextSecondary,
-  };
 
   const profileDataRowStyle: CSSProperties = {
     padding: "14px 0",
@@ -154,9 +141,7 @@ export function ProfilePage() {
     ProfileService.getProfile()
       .then((response) => syncUser(response.user))
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar perfil.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar perfil."));
       })
       .finally(() => setLoading(false));
   }, [messageApi, syncUser]);
@@ -218,9 +203,7 @@ export function ProfilePage() {
       });
       messageApi.success(response.message);
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao reenviar validação.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao reenviar validação."));
     } finally {
       setResendingVerification(false);
     }
@@ -238,9 +221,7 @@ export function ProfilePage() {
       onSuccess?.(response);
     } catch (error) {
       onError?.(error as Error);
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao enviar foto.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao enviar foto."));
     }
   };
 
@@ -259,14 +240,10 @@ export function ProfilePage() {
   return (
     <section>
       {contextHolder}
-      {isDesktop && (
-        <div style={pageHeaderStyle}>
-          <h1 style={pageTitleStyle}>Perfil</h1>
-          <p style={pageDescriptionStyle}>
-            Dados da conta, segurança e foto de perfil.
-          </p>
-        </div>
-      )}
+      <PageHeader
+        title="Perfil"
+        description="Dados da conta, segurança e foto de perfil."
+      />
 
       {user && !user.emailValidated && (
         <Alert

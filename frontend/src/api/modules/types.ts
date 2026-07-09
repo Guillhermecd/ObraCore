@@ -12,7 +12,6 @@ export type User = {
   emailValidated: boolean;
   name: string | null;
   profileImage: ProfileImage | null;
-  groupIds: string[];
   createdAt: string;
   updatedAt: string;
 };

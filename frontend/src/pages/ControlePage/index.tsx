@@ -8,7 +8,6 @@ import {
   Button,
   Card,
   Empty,
-  Grid,
   Popconfirm,
   Space,
   Table,
@@ -19,17 +18,14 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import type { CSSProperties, Key } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { ExpenseCategoryService } from "../../api/modules/ExpenseCategoryService";
+import { useState } from "react";
 import { ExpenseService } from "../../api/modules/ExpenseService";
-import { ExpenseSourceService } from "../../api/modules/ExpenseSourceService";
-import type {
-  Expense,
-  ExpenseCategory,
-  ExpenseSource,
-} from "../../api/modules/types";
+import type { Expense } from "../../api/modules/types";
+import { useExpenseData } from "../../api/modules/useExpenseData";
+import { PageHeader } from "../../components/PageHeader";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
+import { getErrorMessage } from "../../utils/errors";
 import { formatCurrency } from "../../utils/format";
 import { ExpenseDetailModal } from "./ExpenseDetailModal";
 import { ExpenseFormModal } from "./ExpenseFormModal";
@@ -40,28 +36,8 @@ type FormModalState =
   | { mode: "edit"; expense: Expense }
   | null;
 
-const pageHeaderRowStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  flexWrap: "wrap",
-  gap: 12,
-  marginBottom: 20,
-};
-
 export function ControlePage() {
   const { token } = theme.useToken();
-  const pageTitleStyle: CSSProperties = {
-    margin: 0,
-    color: token.colorTextHeading,
-    fontSize: 26,
-  };
-
-  const pageDescriptionStyle: CSSProperties = {
-    margin: "4px 0 0",
-    color: token.colorTextSecondary,
-  };
-
   const bulkActionBarStyle: CSSProperties = {
     display: "flex",
     alignItems: "center",
@@ -75,17 +51,9 @@ export function ControlePage() {
     borderRadius: 8,
   };
 
-  const screens = Grid.useBreakpoint();
-  const isDesktop = Boolean(screens.md);
   usePrivateMobileHeader("Controle");
   const [messageApi, contextHolder] = message.useMessage();
   const { activeGroupId } = useActiveGroup();
-
-  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
-  const [sources, setSources] = useState<ExpenseSource[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
@@ -94,48 +62,26 @@ export function ControlePage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    if (!activeGroupId) {
-      return;
-    }
-
-    Promise.all([
-      ExpenseCategoryService.list(),
-      ExpenseSourceService.list(),
-      ExpenseService.list(),
-    ])
-      .then(([categoriesResponse, sourcesResponse, expensesResponse]) => {
-        setCategories(categoriesResponse.categories);
-        setSources(sourcesResponse.sources);
-        setExpenses(expensesResponse.expenses);
-      })
-      .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar dados.",
-        );
-      })
-      .finally(() => setLoading(false));
-  }, [messageApi, refreshKey, activeGroupId]);
-
-  const categoryMap = useMemo(
-    () => new Map(categories.map((category) => [category.id, category])),
-    [categories],
+  const {
+    categories,
+    sources,
+    expenses,
+    categoryMap,
+    sourceMap,
+    loading,
+    reload: refresh,
+    setCategories,
+    setSources,
+  } = useExpenseData(activeGroupId, (errorMessage) =>
+    messageApi.error(errorMessage),
   );
-  const sourceMap = useMemo(
-    () => new Map(sources.map((source) => [source.id, source])),
-    [sources],
-  );
-
-  const refresh = () => setRefreshKey((key) => key + 1);
 
   const exportXlsx = async () => {
     setExporting(true);
     try {
       await ExpenseService.exportXlsx();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao exportar planilha.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao exportar planilha."));
     } finally {
       setExporting(false);
     }
@@ -220,38 +166,34 @@ export function ControlePage() {
   return (
     <section>
       {contextHolder}
-      <div style={pageHeaderRowStyle}>
-        {isDesktop && (
-          <div>
-            <h1 style={pageTitleStyle}>Controle</h1>
-            <p style={pageDescriptionStyle}>
-              Cadastre os lançamentos de gastos da obra.
-            </p>
-          </div>
-        )}
-        <Space wrap>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setFormModalState({ mode: "create" })}
-          >
-            Novo lançamento
-          </Button>
-          <Button
-            icon={<UploadOutlined />}
-            onClick={() => setImportModalOpen(true)}
-          >
-            Importar planilha
-          </Button>
-          <Button
-            icon={<DownloadOutlined />}
-            onClick={exportXlsx}
-            loading={exporting}
-          >
-            Exportar planilha
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="Controle"
+        description="Cadastre os lançamentos de gastos da obra."
+        actions={
+          <Space wrap>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setFormModalState({ mode: "create" })}
+            >
+              Novo lançamento
+            </Button>
+            <Button
+              icon={<UploadOutlined />}
+              onClick={() => setImportModalOpen(true)}
+            >
+              Importar planilha
+            </Button>
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={exportXlsx}
+              loading={exporting}
+            >
+              Exportar planilha
+            </Button>
+          </Space>
+        }
+      />
 
       <Card title="Histórico de lançamentos" loading={loading}>
         {expenses.length === 0 && !loading ? (

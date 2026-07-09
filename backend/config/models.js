@@ -3,8 +3,8 @@ module.exports.models = {
   migrate: process.env.NODE_ENV === 'production' ? 'safe' : 'alter',
   attributes: {
     id: { type: 'string', columnName: '_id' },
-    createdAt: { type: 'string' },
-    updatedAt: { type: 'string' },
+    createdAt: { type: 'string', autoCreatedAt: true },
+    updatedAt: { type: 'string', autoUpdatedAt: true },
   },
   dataEncryptionKeys: {
     default: process.env.DATA_ENCRYPTION_KEY || 'p/o8X2uJ0mvlWsrV6pp4wCLBEA/tGJLoQ+D3IML+Hy8=',

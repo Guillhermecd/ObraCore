@@ -1,7 +1,7 @@
 module.exports = async function update(req, res) {
   const group = await Group.findOne({ id: req.params.id });
 
-  if (!group || !sails.services.groupservice.isMember(req.userRecord, group.id)) {
+  if (!group || !(await sails.services.groupservice.isMember(req.userRecord, group.id))) {
     return res.status(404).json({ message: 'Grupo não encontrado.' });
   }
 
@@ -36,8 +36,9 @@ module.exports = async function update(req, res) {
   }
 
   const updatedGroup = await Group.updateOne({ id: group.id }).set(valuesToSet);
+  const memberCount = await GroupMember.count({ group: group.id });
 
   return res.json({
-    group: sails.services.groupservice.serializeGroup(updatedGroup, req.user.id),
+    group: sails.services.groupservice.serializeGroup(updatedGroup, req.user.id, memberCount),
   });
 };

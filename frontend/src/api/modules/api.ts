@@ -88,9 +88,25 @@ export async function api<T>(
 }
 
 /**
+ * Dispara o download de um Blob no navegador via link temporário
+ * (`<a download>` + `URL.createObjectURL`), usado tanto para arquivos
+ * baixados da API (`apiDownload`) quanto para arquivos gerados no próprio
+ * cliente (ex.: modelo de importação em `ImportExpensesModal.tsx`).
+ */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
  * Baixa um arquivo binário do backend (ex.: exportações) e dispara o
- * download no navegador, reaproveitando o padrão de blob + <a download>
- * já usado em ImportExpensesModal.tsx (downloadTemplate).
+ * download no navegador via `downloadBlob`.
  */
 export async function apiDownload(path: string, filename: string): Promise<void> {
   const headers = buildAuthHeaders();
@@ -105,12 +121,5 @@ export async function apiDownload(path: string, filename: string): Promise<void>
   }
 
   const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename);
 }

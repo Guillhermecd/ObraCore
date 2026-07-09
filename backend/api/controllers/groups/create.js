@@ -17,15 +17,13 @@ module.exports = async function create(req, res) {
     name: name.trim(),
     description: description ? description.trim() : null,
     owner: req.user.id,
-    memberIds: [req.user.id],
     plannedSpending: plannedSpendingFields.plannedSpending,
     plannedSpendingHistory: plannedSpendingFields.plannedSpendingHistory,
   }).fetch();
 
-  const groupIds = Array.isArray(req.userRecord.groupIds) ? req.userRecord.groupIds : [];
-  await User.updateOne({ id: req.user.id }).set({ groupIds: [...groupIds, group.id] });
+  await GroupMember.create({ group: group.id, user: req.user.id });
 
   return res.status(201).json({
-    group: sails.services.groupservice.serializeGroup(group, req.user.id),
+    group: sails.services.groupservice.serializeGroup(group, req.user.id, 1),
   });
 };

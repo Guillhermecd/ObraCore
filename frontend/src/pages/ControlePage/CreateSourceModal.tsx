@@ -2,6 +2,7 @@ import { Button, Form, Input, Modal, message } from "antd";
 import { Controller, useForm } from "react-hook-form";
 import { ExpenseSourceService } from "../../api/modules/ExpenseSourceService";
 import type { ExpenseSource } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 
 type CreateSourceForm = {
   name: string;
@@ -36,9 +37,7 @@ export function CreateSourceModal({ open, onClose, onCreated }: Props) {
       onCreated(response.source);
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao criar fonte.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao criar fonte."));
     }
   };
 

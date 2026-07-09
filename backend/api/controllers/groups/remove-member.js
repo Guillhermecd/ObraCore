@@ -1,7 +1,7 @@
 module.exports = async function removeMember(req, res) {
   const group = await Group.findOne({ id: req.params.id });
 
-  if (!group || !sails.services.groupservice.isMember(req.userRecord, group.id)) {
+  if (!group || !(await sails.services.groupservice.isMember(req.userRecord, group.id))) {
     return res.status(404).json({ message: 'Grupo não encontrado.' });
   }
 

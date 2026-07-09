@@ -5,11 +5,12 @@ module.exports = async function updateEmail(req, res) {
     return res.badRequest({ message: 'E-mail e confirmação são obrigatórios.' });
   }
 
-  if (email.toLowerCase().trim() !== emailConfirmation.toLowerCase().trim()) {
+  const normalizedEmail = sails.services.authservice.normalizeEmail(email);
+
+  if (normalizedEmail !== sails.services.authservice.normalizeEmail(emailConfirmation)) {
     return res.badRequest({ message: 'A confirmação de e-mail não confere.' });
   }
 
-  const normalizedEmail = email.toLowerCase().trim();
   const existingUser = await User.findOne({ email: normalizedEmail });
 
   if (existingUser && existingUser.id !== req.user.id) {

@@ -7,7 +7,7 @@ module.exports = async function create(req, res) {
 
   const group = await Group.findOne({ id: groupId });
 
-  if (!group || !sails.services.groupservice.isMember(req.userRecord, group.id)) {
+  if (!group || !(await sails.services.groupservice.isMember(req.userRecord, group.id))) {
     return res.status(404).json({ message: 'Grupo não encontrado.' });
   }
 
@@ -15,7 +15,7 @@ module.exports = async function create(req, res) {
     return res.status(403).json({ message: 'Apenas o criador do grupo pode enviar convites.' });
   }
 
-  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedEmail = sails.services.authservice.normalizeEmail(email);
   const invitee = await User.findOne({ email: normalizedEmail });
 
   if (!invitee) {
@@ -26,8 +26,8 @@ module.exports = async function create(req, res) {
     return res.badRequest({ message: 'Você já participa deste grupo.' });
   }
 
-  const memberIds = Array.isArray(group.memberIds) ? group.memberIds : [];
-  if (memberIds.includes(invitee.id)) {
+  const isAlreadyMember = await sails.services.groupservice.isMember(invitee, group.id);
+  if (isAlreadyMember) {
     return res.status(409).json({ message: 'Este usuário já é membro do grupo.' });
   }
 

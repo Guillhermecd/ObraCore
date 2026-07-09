@@ -16,11 +16,13 @@ import {
 import dayjs from "dayjs";
 import type { CSSProperties } from "react";
 import { useState } from "react";
+import { downloadBlob } from "../../api/modules/api";
 import { ExpenseService } from "../../api/modules/ExpenseService";
 import type {
   ExpenseImportPreviewResponse,
   ExpenseImportRow,
 } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 import { formatCurrency } from "../../utils/format";
 
 const { Dragger } = Upload;
@@ -58,14 +60,7 @@ function downloadTemplate() {
   const blob = new Blob([csvLines.join("\n")], {
     type: "text/csv;charset=utf-8;",
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "modelo-lancamentos.csv";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, "modelo-lancamentos.csv");
 }
 
 type Step = "upload" | "preview";
@@ -118,9 +113,7 @@ export function ImportExpensesModal({ open, onClose, onImported }: Props) {
         setStep("preview");
       })
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao ler o arquivo.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao ler o arquivo."));
       })
       .finally(() => setUploading(false));
     return false;
@@ -144,11 +137,7 @@ export function ImportExpensesModal({ open, onClose, onImported }: Props) {
       onImported();
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error
-          ? error.message
-          : "Erro ao importar lançamentos.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao importar lançamentos."));
     } finally {
       setCommitting(false);
     }

@@ -9,25 +9,17 @@ import {
   Space,
   Tag,
   message,
-  theme,
 } from "antd";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { GroupInviteService } from "../../api/modules/GroupInviteService";
 import type { ReceivedGroupInvite, SentGroupInvite } from "../../api/modules/types";
+import { PageHeader } from "../../components/PageHeader";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
+import { getErrorMessage } from "../../utils/errors";
 import { CreateGroupModal } from "./CreateGroupModal";
 import { ManageGroupModal } from "./ManageGroupModal";
-
-const pageHeaderRowStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  flexWrap: "wrap",
-  gap: 12,
-  marginBottom: 20,
-};
 
 const invitesGridStyle: CSSProperties = {
   display: "grid",
@@ -36,18 +28,6 @@ const invitesGridStyle: CSSProperties = {
 };
 
 export function GroupsPage() {
-  const { token } = theme.useToken();
-  const pageTitleStyle: CSSProperties = {
-    margin: 0,
-    color: token.colorTextHeading,
-    fontSize: 26,
-  };
-
-  const pageDescriptionStyle: CSSProperties = {
-    margin: "4px 0 0",
-    color: token.colorTextSecondary,
-  };
-
   const screens = Grid.useBreakpoint();
   const isDesktop = Boolean(screens.md);
   usePrivateMobileHeader("Grupos");
@@ -77,9 +57,7 @@ export function GroupsPage() {
         setReceivedInvites(receivedResponse.invites);
       })
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar convites.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar convites."));
       })
       .finally(() => setInvitesLoading(false));
   };
@@ -97,9 +75,7 @@ export function GroupsPage() {
       messageApi.success(`Você agora participa de "${invite.groupName}".`);
       refreshAll();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao aceitar convite.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao aceitar convite."));
     }
   };
 
@@ -109,9 +85,7 @@ export function GroupsPage() {
       messageApi.info("Convite recusado.");
       refreshAll();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao recusar convite.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao recusar convite."));
     }
   };
 
@@ -121,32 +95,26 @@ export function GroupsPage() {
       messageApi.info("Convite cancelado.");
       refreshAll();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao cancelar convite.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao cancelar convite."));
     }
   };
 
   return (
     <section>
       {contextHolder}
-      <div style={pageHeaderRowStyle}>
-        {isDesktop && (
-          <div>
-            <h1 style={pageTitleStyle}>Grupos</h1>
-            <p style={pageDescriptionStyle}>
-              Gerencie seus grupos e convites de colaboração.
-            </p>
-          </div>
-        )}
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setCreateModalOpen(true)}
-        >
-          Novo grupo
-        </Button>
-      </div>
+      <PageHeader
+        title="Grupos"
+        description="Gerencie seus grupos e convites de colaboração."
+        actions={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalOpen(true)}
+          >
+            Novo grupo
+          </Button>
+        }
+      />
 
       <Card title="Meus grupos">
         <List

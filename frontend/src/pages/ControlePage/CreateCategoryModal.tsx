@@ -2,6 +2,7 @@ import { Button, ColorPicker, Form, Input, Modal, message } from "antd";
 import { Controller, useForm } from "react-hook-form";
 import { ExpenseCategoryService } from "../../api/modules/ExpenseCategoryService";
 import type { ExpenseCategory } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 
 type CreateCategoryForm = {
   name: string;
@@ -37,9 +38,7 @@ export function CreateCategoryModal({ open, onClose, onCreated }: Props) {
       onCreated(response.category);
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao criar categoria.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao criar categoria."));
     }
   };
 

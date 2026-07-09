@@ -40,6 +40,24 @@ async function resolveCanonicalPersonalGroup(groups, userId) {
   return groups[0];
 }
 
+/**
+ * Cria a membership de forma segura contra concorrência: tenta criar direto
+ * (em vez de "buscar, depois criar" como `findOrCreate`, que tem uma janela
+ * de corrida entre as duas etapas) e, se outra requisição concorrente já
+ * criou a mesma linha um instante antes, o índice único em `(group, user)`
+ * (ver `ensureIndexes`) rejeita com `E_UNIQUE` — nesse caso apenas ignora,
+ * já que o resultado desejado (a membership existir) já foi alcançado.
+ */
+async function ensureMembership(groupId, userId) {
+  try {
+    await GroupMember.create({ group: groupId, user: userId });
+  } catch (error) {
+    if (error.code !== 'E_UNIQUE') {
+      throw error;
+    }
+  }
+}
+
 module.exports = {
   async isMember(userRecord, groupId) {
     const count = await GroupMember.count({ user: userRecord.id, group: groupId });
@@ -136,24 +154,48 @@ module.exports = {
       existingPersonalGroup = existingPersonalGroups[0];
     }
 
-    const personalGroup = existingPersonalGroup || await Group.create({
-      name: 'Pessoal',
-      owner: userRecord.id,
-      isPersonal: true,
-    }).fetch();
+    let personalGroup = existingPersonalGroup;
+    if (!personalGroup) {
+      try {
+        personalGroup = await Group.create({
+          name: 'Pessoal',
+          owner: userRecord.id,
+          isPersonal: true,
+        }).fetch();
+      } catch (error) {
+        if (error.code !== 'E_UNIQUE') {
+          throw error;
+        }
+        // Outra requisição concorrente já criou o grupo Pessoal deste usuário
+        // (índice único em `(owner)` para `isPersonal: true`, ver `ensureIndexes`).
+        personalGroup = await Group.findOne({ owner: userRecord.id, isPersonal: true });
+      }
+    }
 
-    await GroupMember.findOrCreate(
-      { group: personalGroup.id, user: userRecord.id },
-      { group: personalGroup.id, user: userRecord.id },
-    );
+    await ensureMembership(personalGroup.id, userRecord.id);
 
     return personalGroup;
   },
 
   async addMember(group, userRecord) {
-    await GroupMember.findOrCreate(
-      { group: group.id, user: userRecord.id },
-      { group: group.id, user: userRecord.id },
+    await ensureMembership(group.id, userRecord.id);
+  },
+
+  /**
+   * Garante os índices únicos que fecham as corridas de concorrência de
+   * `ensurePersonalGroup`/`addMember`: um usuário só pode ter um grupo
+   * Pessoal (índice parcial, não afeta grupos compartilhados) e só pode
+   * aparecer uma vez como membro do mesmo grupo. Chamado uma vez no boot
+   * (`config/bootstrap.js`); `createIndex` é idempotente.
+   */
+  async ensureIndexes() {
+    await GroupMember.getDatastore().manager.collection('group_members').createIndex(
+      { group: 1, user: 1 },
+      { unique: true },
+    );
+    await Group.getDatastore().manager.collection('groups').createIndex(
+      { owner: 1 },
+      { unique: true, partialFilterExpression: { isPersonal: true } },
     );
   },
 

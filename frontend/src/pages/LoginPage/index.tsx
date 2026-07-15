@@ -49,7 +49,7 @@ export function LoginPage() {
     display: "grid",
     placeItems: "center",
     padding: 24,
-    background: `linear-gradient(135deg, rgba(0, 80, 255, 0.08), rgba(6, 191, 255, 0.08)), ${token.colorBgLayout}`,
+    background: `linear-gradient(135deg, rgba(130, 192, 34, 0.08), rgba(184, 216, 120, 0.08)), ${token.colorBgLayout}`,
   };
 
   const authActionTextStyle: CSSProperties = {
@@ -84,7 +84,7 @@ export function LoginPage() {
       <section style={authPanelStyle}>
         <Card styles={{ body: { padding: screens.md ? 40 : "32px 24px" } }}>
           <div style={authLogoWrapStyle}>
-            <img style={authLogoStyle} src="/bimd-logo.png" alt="BIMD" />
+            <img style={authLogoStyle} src="/obracore-logo-color.png" alt="ObraCore" />
           </div>
           <Form layout="vertical" onFinish={handleSubmit(submit)}>
             <Controller

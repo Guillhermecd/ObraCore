@@ -53,8 +53,9 @@ const collapsedLogoStyle: CSSProperties = {
 };
 
 const drawerLogoStyle: CSSProperties = {
-  width: 160,
-  height: "auto",
+  maxWidth: 160,
+  maxHeight: 64,
+  objectFit: "contain",
   display: "block",
   margin: "0 auto",
 };
@@ -223,13 +224,11 @@ function PrivateLayoutContent() {
           >
             <div style={collapsed ? collapsedLogoStyle : logoStyle}>
               <img
-                src={
-                  collapsed ? "/bimd-icon-light.png" : "/bimd-logo-light.png"
-                }
-                alt="BIMD"
+                src="/obracore-logo-color.png"
+                alt="ObraCore"
                 style={{
-                  maxWidth: collapsed ? 24 : 188,
-                  maxHeight: collapsed ? 30 : 48,
+                  maxWidth: collapsed ? 32 : 188,
+                  maxHeight: collapsed ? 32 : 64,
                   objectFit: "contain",
                 }}
               />
@@ -279,8 +278,8 @@ function PrivateLayoutContent() {
           title={
             <img
               style={drawerLogoStyle}
-              src="/bimd-logo-light.png"
-              alt="BIMD"
+              src="/obracore-logo-color.png"
+              alt="ObraCore"
             />
           }
           placement="left"

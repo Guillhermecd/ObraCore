@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { useMemo, useRef, useState } from "react";
+import { chartGradientH, chartGradientV } from "../../brand";
 import type { Expense } from "../../api/modules/types";
 import { useExpenseData } from "../../api/modules/useExpenseData";
 import { useActiveGroup } from "../../layouts/groupContext";
@@ -25,9 +26,6 @@ import { formatCompactCurrency, formatCurrency } from "../../utils/format";
 import styles from "./dashboard.module.css";
 
 const { RangePicker } = DatePicker;
-
-const CHART_GRADIENT_H = "l(0) 0:#3b82f6 1:#60a5fa";
-const CHART_GRADIENT_V = "l(90) 0:#3b82f6 1:#60a5fa";
 
 type BreakdownItem = {
   name: string;
@@ -393,7 +391,7 @@ export function DashboardPage() {
                           domainMax: withHeadroom(categoryBreakdown, 1.25),
                         },
                       }}
-                      style={{ fill: CHART_GRADIENT_H }}
+                      style={{ fill: chartGradientH }}
                       label={{
                         text: (datum: BreakdownItem) =>
                           formatCurrency(datum.value),
@@ -435,7 +433,7 @@ export function DashboardPage() {
                         items: [{ field: "value", valueFormatter: formatCurrency }],
                       }}
                       style={{
-                        fill: CHART_GRADIENT_V,
+                        fill: chartGradientV,
                         radiusTopLeft: 4,
                         radiusTopRight: 4,
                         maxWidth: 40,

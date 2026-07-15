@@ -1,6 +1,22 @@
 /* Glassmorphism system for the Dashboard page.
    Dark variant is the default look; light variant overrides via :global(html:not(.dark)). */
 
+/* Fonte única de verdade da paleta de marca para CSS (espelha frontend/src/brand.ts —
+   CSS Modules não importa constantes JS, então os valores ficam replicados aqui). */
+:global(:root) {
+  --brand-primary: #82c022;
+  --brand-primary-hover: #6ba018;
+  --brand-primary-pressed: #5c8a15;
+  --brand-light: #b8d878;
+  --brand-neutral: #a6a6a6;
+  --brand-gradient: linear-gradient(
+    135deg,
+    #b8d878 0%,
+    #82c022 50%,
+    #5c8a15 100%
+  );
+}
+
 .page {
   position: relative;
   overflow: hidden;
@@ -37,7 +53,7 @@
   height: 420px;
   top: -120px;
   left: -80px;
-  background: #3b82f6;
+  background: var(--brand-primary);
 }
 
 .blob2 {
@@ -45,7 +61,7 @@
   height: 360px;
   bottom: -100px;
   right: -60px;
-  background: #8b5cf6;
+  background: var(--brand-primary-pressed);
 }
 
 .blob3 {
@@ -53,7 +69,7 @@
   height: 280px;
   top: 40%;
   left: 55%;
-  background: #60a5fa;
+  background: var(--brand-light);
 }
 
 .content {
@@ -77,7 +93,7 @@
 
 .glassCard:hover {
   background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(96, 165, 250, 0.4);
+  border-color: rgba(130, 192, 34, 0.4);
   transform: translateY(-2px);
 }
 
@@ -89,7 +105,7 @@
 
 :global(html:not(.dark)) .glassCard:hover {
   background: rgba(255, 255, 255, 0.72);
-  border-color: rgba(59, 130, 246, 0.4);
+  border-color: rgba(107, 160, 24, 0.4);
 }
 
 /* ---- Typography ---- */
@@ -145,7 +161,7 @@
 }
 
 .accent {
-  color: #60a5fa;
+  color: var(--brand-light);
 }
 
 /* ---- Progress bar ---- */
@@ -166,7 +182,7 @@
 .progressFill {
   height: 100%;
   border-radius: 4px;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  background: var(--brand-gradient);
   transition: width 0.3s ease;
 }
 
@@ -202,8 +218,8 @@
 }
 
 .exportBtnWrap {
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(96, 165, 250, 0.4);
+  background: rgba(130, 192, 34, 0.15);
+  border: 1px solid rgba(184, 216, 120, 0.4);
   border-radius: 12px;
   padding: 6px;
   display: flex;
@@ -296,7 +312,7 @@
 .breakdownBarFill {
   height: 100%;
   border-radius: 2px;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  background: var(--brand-gradient);
 }
 
 .breakdownName {

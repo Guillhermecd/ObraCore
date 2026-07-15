@@ -1,12 +1,18 @@
 import { theme } from "antd";
 import type { ThemeConfig } from "antd";
+import {
+  brandLight,
+  brandOnPrimary,
+  brandPrimary,
+  brandPrimaryHover,
+} from "./brand";
 
 export const bimdColors = {
   black: "#000000",
-  navy: "#001B5E",
-  primary: "#0050FF",
+  navy: "#1F2A1A",
+  primary: brandPrimary,
   white: "#FFFFFF",
-  cyan: "#06BFFF",
+  cyan: brandLight,
 } as const;
 
 export const bimdTheme: ThemeConfig = {
@@ -30,6 +36,10 @@ export const bimdTheme: ThemeConfig = {
       controlHeight: 40,
       fontWeight: 600,
       primaryShadow: "none",
+      // Só o botão primário (verde) precisa de texto escuro para contraste AA;
+      // não usar o token global colorTextLightSolid, que também rege texto de
+      // botão danger, Tag, Tooltip e Badge sobre fundos escuros/coloridos.
+      primaryColor: brandOnPrimary,
     },
     Card: {
       borderRadiusLG: 8,
@@ -49,7 +59,9 @@ export const bimdTheme: ThemeConfig = {
       darkItemBg: bimdColors.navy,
       darkSubMenuItemBg: bimdColors.navy,
       darkItemSelectedBg: bimdColors.primary,
-      darkItemHoverBg: "#003ECC",
+      darkItemColor: "rgba(255, 255, 255, 0.75)",
+      darkItemSelectedColor: brandOnPrimary,
+      darkItemHoverBg: brandPrimaryHover,
     },
     Typography: {
       titleMarginBottom: 0,
@@ -79,6 +91,7 @@ export const bimdDarkTheme: ThemeConfig = {
       controlHeight: 40,
       fontWeight: 600,
       primaryShadow: "none",
+      primaryColor: brandOnPrimary,
     },
     Card: {
       borderRadiusLG: 8,
@@ -98,6 +111,8 @@ export const bimdDarkTheme: ThemeConfig = {
       darkItemBg: "#111827",
       darkSubMenuItemBg: "#111827",
       darkItemSelectedBg: bimdColors.primary,
+      darkItemColor: "rgba(255, 255, 255, 0.75)",
+      darkItemSelectedColor: brandOnPrimary,
       darkItemHoverBg: "#1F2937",
     },
     Typography: {

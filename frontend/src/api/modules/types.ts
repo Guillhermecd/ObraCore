@@ -1,3 +1,18 @@
+export type Branding = {
+  id: string;
+  key: string;
+  companyName: string;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  gradientFrom: string | null;
+  gradientTo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ProfileImage = {
   bucket: string;
   key: string;
@@ -39,6 +54,7 @@ export type Group = {
   memberCount: number;
   plannedSpending: number;
   plannedSpendingHistory: PlannedSpendingHistoryEntry[];
+  valorContratado: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -65,12 +81,16 @@ export type ReceivedGroupInvite = {
   createdAt: string;
 };
 
+export type ExpenseTipo = "ENTRADA" | "SAIDA";
+export type ExpenseCategoryTipo = ExpenseTipo | "AMBOS";
+
 export type ExpenseCategory = {
   id: string;
   name: string;
   color: string | null;
   owner: string;
   groupId: string;
+  tipo: ExpenseCategoryTipo;
   createdAt: string;
   updatedAt: string;
 };
@@ -80,6 +100,7 @@ export type ExpenseSource = {
   name: string;
   owner: string;
   groupId: string;
+  tipo: ExpenseCategoryTipo;
   createdAt: string;
   updatedAt: string;
 };
@@ -107,6 +128,9 @@ export type Expense = {
   comprovante: ProfileImage | null;
   owner: string;
   groupId: string;
+  tipo: ExpenseTipo;
+  dataPrevista: string | null;
+  dataRealizada: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -145,4 +169,45 @@ export type ExpenseImportFailure = {
 export type ExpenseImportCommitResponse = {
   imported: number;
   failed: ExpenseImportFailure[];
+};
+
+export type MovimentacaoStatus = "REALIZADO" | "PENDENTE" | "ATRASADO";
+
+export type DashboardTotais = {
+  entradas: number;
+  saidas: number;
+  saldo: number;
+};
+
+export type DashboardProjeto = {
+  id: string;
+  nome: string;
+  saldoAtual: number;
+  gastoPlanejado: number | null;
+  custoReal: number;
+  consumoPct: number | null;
+  estouro: boolean;
+};
+
+export type DashboardOverviewResponse = {
+  totais: DashboardTotais;
+  projetos: DashboardProjeto[];
+};
+
+export type Movimentacao = {
+  id: string;
+  data: string;
+  groupId: string;
+  projeto: string | null;
+  tipo: ExpenseTipo;
+  categoria: string | null;
+  valor: number;
+  status: MovimentacaoStatus;
+};
+
+export type MovimentacoesResponse = {
+  items: Movimentacao[];
+  page: number;
+  limit: number;
+  total: number;
 };

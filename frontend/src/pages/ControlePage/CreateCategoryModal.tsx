@@ -1,7 +1,7 @@
-import { Button, ColorPicker, Form, Input, Modal, message } from "antd";
+import { Button, ColorPicker, Form, Input, Modal, Tag, message } from "antd";
 import { Controller, useForm } from "react-hook-form";
 import { ExpenseCategoryService } from "../../api/modules/ExpenseCategoryService";
-import type { ExpenseCategory } from "../../api/modules/types";
+import type { ExpenseCategory, ExpenseTipo } from "../../api/modules/types";
 
 type CreateCategoryForm = {
   name: string;
@@ -10,11 +10,12 @@ type CreateCategoryForm = {
 
 type Props = {
   open: boolean;
+  tipo: ExpenseTipo;
   onClose: () => void;
   onCreated: (category: ExpenseCategory) => void;
 };
 
-export function CreateCategoryModal({ open, onClose, onCreated }: Props) {
+export function CreateCategoryModal({ open, tipo, onClose, onCreated }: Props) {
   const [messageApi, contextHolder] = message.useMessage();
   const {
     control,
@@ -32,7 +33,7 @@ export function CreateCategoryModal({ open, onClose, onCreated }: Props) {
 
   const submit = async (values: CreateCategoryForm) => {
     try {
-      const response = await ExpenseCategoryService.create(values);
+      const response = await ExpenseCategoryService.create({ ...values, tipo });
       messageApi.success("Categoria criada.");
       onCreated(response.category);
       close();
@@ -53,6 +54,11 @@ export function CreateCategoryModal({ open, onClose, onCreated }: Props) {
     >
       {contextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
+        <Form.Item label="Tipo">
+          <Tag color={tipo === "ENTRADA" ? "success" : "default"}>
+            {tipo === "ENTRADA" ? "Entrada" : "Saída"}
+          </Tag>
+        </Form.Item>
         <Controller
           name="name"
           control={control}

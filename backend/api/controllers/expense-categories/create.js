@@ -1,8 +1,13 @@
 module.exports = async function create(req, res) {
-  const { name, color } = req.body;
+  const { name, color, tipo } = req.body;
 
   if (!name || !name.trim()) {
     return res.badRequest({ message: 'Nome da categoria é obrigatório.' });
+  }
+
+  const normalizedTipo = tipo || 'SAIDA';
+  if (!['ENTRADA', 'SAIDA', 'AMBOS'].includes(normalizedTipo)) {
+    return res.badRequest({ message: 'Tipo inválido.' });
   }
 
   const groupId = await sails.services.groupservice.resolveGroupId(req);
@@ -21,6 +26,7 @@ module.exports = async function create(req, res) {
     color: color || null,
     owner: req.user.id,
     groupId,
+    tipo: normalizedTipo,
   }).fetch();
 
   return res.status(201).json({ category });

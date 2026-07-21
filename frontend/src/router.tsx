@@ -7,6 +7,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { VisaoGeralPage } from "./pages/VisaoGeralPage";
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,10 @@ export const router = createBrowserRouter([
   {
     element: <PrivateLayout />,
     children: [
+      {
+        path: "/visao-geral",
+        element: <VisaoGeralPage />,
+      },
       {
         path: "/dashboard",
         element: <DashboardPage />,

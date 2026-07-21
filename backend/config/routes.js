@@ -1,5 +1,6 @@
 module.exports.routes = {
   'GET /api/health': { action: 'health' },
+  'GET /api/public/branding': { action: 'public/branding' },
 
   'POST /api/auth/register': { action: 'auth/register' },
   'POST /api/auth/login': { action: 'auth/login' },
@@ -15,6 +16,9 @@ module.exports.routes = {
   'POST /api/profile/image': { action: 'profile/upload-image' },
 
   'GET /api/storage/presigned-url': { action: 'storage/presigned-url' },
+
+  'GET /api/dashboard/overview': { action: 'dashboard/overview' },
+  'GET /api/dashboard/movimentacoes': { action: 'dashboard/movimentacoes' },
 
   'GET /api/groups': { action: 'groups/list' },
   'POST /api/groups': { action: 'groups/create' },

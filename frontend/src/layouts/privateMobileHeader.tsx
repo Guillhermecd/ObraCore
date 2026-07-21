@@ -7,7 +7,11 @@ import {
   type SetStateAction,
 } from "react";
 
-export const defaultPrivateMobileHeaderContent = "BIMD";
+// Fallback estático (avaliado no import, sem acesso a contexto React).
+// PrivateLayout.tsx usa o nome da marca ativa como valor inicial real;
+// isto só serve de valor de segurança caso algo importe este módulo
+// isoladamente antes do branding estar disponível.
+export const defaultPrivateMobileHeaderContent = "OAKSD";
 
 type PrivateMobileHeaderContextValue = {
   setMobileHeaderContent: Dispatch<SetStateAction<ReactNode>>;

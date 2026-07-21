@@ -1,4 +1,5 @@
 import {
+  AppstoreOutlined,
   FormOutlined,
   LogoutOutlined,
   MenuOutlined,
@@ -23,14 +24,13 @@ import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { authStorage } from "../api/modules/api";
-import { bimdColors } from "../theme";
+import { BrandLogo } from "../branding/BrandLogo";
+import { useBranding } from "../branding/BrandingContext";
+import { resolveBrandColors } from "../theme";
 import { useTheme } from "../themeContext";
 import { GroupProvider } from "./GroupProvider";
 import { useActiveGroup } from "./groupContext";
-import {
-  PrivateMobileHeaderContext,
-  defaultPrivateMobileHeaderContent,
-} from "./privateMobileHeader";
+import { PrivateMobileHeaderContext } from "./privateMobileHeader";
 
 const { Header, Sider, Content } = Layout;
 
@@ -93,9 +93,12 @@ function PrivateLayoutContent() {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
-  const [mobileHeaderContent, setMobileHeaderContent] = useState<ReactNode>(
-    defaultPrivateMobileHeaderContent,
-  );
+
+  const branding = useBranding();
+  const brandColors = resolveBrandColors(branding);
+  const brandName = branding?.companyName ?? "OAKSD";
+
+  const [mobileHeaderContent, setMobileHeaderContent] = useState<ReactNode>(brandName);
 
   const { themeMode, toggleTheme } = useTheme();
   const { token } = theme.useToken();
@@ -128,8 +131,8 @@ function PrivateLayoutContent() {
   }, [navigate]);
 
   const resetMobileHeaderContent = useCallback(() => {
-    setMobileHeaderContent(defaultPrivateMobileHeaderContent);
-  }, []);
+    setMobileHeaderContent(brandName);
+  }, [brandName]);
 
   const confirmLogout = useCallback(() => {
     setLogoutModalOpen(false);
@@ -138,6 +141,15 @@ function PrivateLayoutContent() {
 
   const menuItems = useMemo<MenuProps["items"]>(
     () => [
+      {
+        key: "/visao-geral",
+        icon: <AppstoreOutlined />,
+        label: "Visão Geral",
+        onClick: () => {
+          setDrawerOpen(false);
+          navigate("/visao-geral");
+        },
+      },
       {
         key: "/dashboard",
         icon: <PieChartOutlined />,
@@ -219,14 +231,11 @@ function PrivateLayoutContent() {
             collapsible
             collapsed={collapsed}
             onCollapse={setCollapsed}
-            style={{ background: themeMode === "dark" ? "#111827" : bimdColors.navy }}
+            style={{ background: themeMode === "dark" ? "#111827" : brandColors.secondary }}
           >
             <div style={collapsed ? collapsedLogoStyle : logoStyle}>
-              <img
-                src={
-                  collapsed ? "/bimd-icon-light.png" : "/bimd-logo-light.png"
-                }
-                alt="BIMD"
+              <BrandLogo
+                tone="light"
                 style={{
                   maxWidth: collapsed ? 24 : 188,
                   maxHeight: collapsed ? 30 : 48,
@@ -276,22 +285,16 @@ function PrivateLayoutContent() {
           </Content>
         </Layout>
         <Drawer
-          title={
-            <img
-              style={drawerLogoStyle}
-              src="/bimd-logo-light.png"
-              alt="BIMD"
-            />
-          }
+          title={<BrandLogo tone="light" style={drawerLogoStyle} />}
           placement="left"
           width="min(360px, 85vw)"
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           closable={false}
           styles={{
-            body: { padding: "12px 0", background: themeMode === "dark" ? "#111827" : bimdColors.navy },
+            body: { padding: "12px 0", background: themeMode === "dark" ? "#111827" : brandColors.secondary },
             header: {
-              background: themeMode === "dark" ? "#111827" : bimdColors.navy,
+              background: themeMode === "dark" ? "#111827" : brandColors.secondary,
               borderBottom: 0,
               padding: "24px 28px",
               textAlign: "center",

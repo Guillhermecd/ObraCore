@@ -3,6 +3,7 @@ import type {
   Expense,
   ExpenseImportCommitResponse,
   ExpenseImportPreviewResponse,
+  ExpenseTipo,
   MessageResponse,
   PaymentMethod,
 } from "./types";
@@ -15,6 +16,9 @@ export type CreateExpensePayload = {
   paymentMethod: PaymentMethod;
   amount: number;
   notes?: string;
+  tipo?: ExpenseTipo;
+  dataPrevista?: string | null;
+  dataRealizada?: string | null;
 };
 
 export type UpdateExpensePayload = Partial<CreateExpensePayload>;

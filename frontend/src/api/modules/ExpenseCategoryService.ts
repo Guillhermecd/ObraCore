@@ -1,9 +1,10 @@
 import { api } from "./api";
-import type { ExpenseCategory, MessageResponse } from "./types";
+import type { ExpenseCategory, ExpenseCategoryTipo, MessageResponse } from "./types";
 
 export type CreateExpenseCategoryPayload = {
   name: string;
   color?: string;
+  tipo?: ExpenseCategoryTipo;
 };
 
 type ExpenseCategoryListResponse = {

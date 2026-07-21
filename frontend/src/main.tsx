@@ -6,14 +6,17 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
-import { bimdTheme, bimdDarkTheme } from "./theme";
+import { BrandingProvider } from "./branding/BrandingProvider";
+import { useBranding } from "./branding/BrandingContext";
+import { buildAppTheme, resolveBrandColors } from "./theme";
 import { ThemeProvider, useTheme } from "./themeContext";
 
 dayjs.locale("pt-br");
 
 function AppContent() {
   const { themeMode } = useTheme();
-  const currentTheme = themeMode === "dark" ? bimdDarkTheme : bimdTheme;
+  const branding = useBranding();
+  const currentTheme = buildAppTheme(resolveBrandColors(branding), themeMode);
 
   return (
     <ConfigProvider theme={currentTheme} locale={ptBR}>
@@ -24,8 +27,10 @@ function AppContent() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <BrandingProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </BrandingProvider>
   </StrictMode>,
 );

@@ -28,6 +28,7 @@ module.exports = {
       memberCount: toArray(group.memberIds).length,
       plannedSpending: group.plannedSpending || 0,
       plannedSpendingHistory: toArray(group.plannedSpendingHistory),
+      valorContratado: group.valorContratado ?? null,
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
     };

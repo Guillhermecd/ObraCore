@@ -16,6 +16,12 @@ module.exports = {
     comprovante: { type: 'json' },
     owner: { type: 'string', required: true },
     groupId: { type: 'string', required: true },
+
+    // Caixa consolidado (aditivo): tipo do lançamento e datas prevista/realizada.
+    // `date` é mantido por compatibilidade até a migração ser validada (ver backfill).
+    tipo: { type: 'string', isIn: ['ENTRADA', 'SAIDA'], defaultsTo: 'SAIDA' },
+    dataPrevista: { type: 'string', allowNull: true },
+    dataRealizada: { type: 'string', allowNull: true },
   },
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {

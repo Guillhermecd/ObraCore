@@ -13,6 +13,11 @@ module.exports = {
     isPersonal: { type: 'boolean', defaultsTo: false },
     plannedSpending: { type: 'number', defaultsTo: 0 },
     plannedSpendingHistory: { type: 'json', defaultsTo: [] },
+
+    // Caixa consolidado (aditivo): valor contratado com o cliente (receita
+    // esperada). Distinto de plannedSpending, que é o custo esperado.
+    // Nulo nos grupos existentes até ser preenchido — tratar com segurança.
+    valorContratado: { type: 'number', allowNull: true },
   },
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {

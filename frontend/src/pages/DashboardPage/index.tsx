@@ -188,21 +188,29 @@ export function DashboardPage() {
     [sources],
   );
 
+  // Este dashboard de projeto é focado em custo (SAIDA). Com o console
+  // consolidado, a mesma coleção de lançamentos passou a incluir ENTRADA
+  // também — sem este filtro, receita seria somada como se fosse gasto.
+  const saidaExpenses = useMemo(
+    () => expenses.filter((expense) => (expense.tipo ?? "SAIDA") === "SAIDA"),
+    [expenses],
+  );
+
   const filteredExpenses = useMemo(() => {
     if (!range) {
-      return expenses;
+      return saidaExpenses;
     }
     const [start, end] = range;
     const startBoundary = start.startOf("day");
     const endBoundary = end.endOf("day");
-    return expenses.filter((expense) => {
+    return saidaExpenses.filter((expense) => {
       const date = dayjs(expense.date);
       return (
         (date.isSame(startBoundary) || date.isAfter(startBoundary)) &&
         (date.isSame(endBoundary) || date.isBefore(endBoundary))
       );
     });
-  }, [expenses, range]);
+  }, [saidaExpenses, range]);
 
   const totalAmount = useMemo(
     () => filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0),
@@ -212,11 +220,11 @@ export function DashboardPage() {
     filteredExpenses.length > 0 ? totalAmount / filteredExpenses.length : 0;
 
   const projectTotal = useMemo(
-    () => expenses.reduce((sum, expense) => sum + expense.amount, 0),
-    [expenses],
+    () => saidaExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [saidaExpenses],
   );
   const plannedSpending = activeGroup?.plannedSpending ?? 0;
-  const freeRevenue = plannedSpending - projectTotal;
+  const budgetBalance = plannedSpending - projectTotal;
 
   const categoryBreakdown = useMemo(
     () =>
@@ -379,13 +387,13 @@ export function DashboardPage() {
             </Card>
             <Card loading={loading} style={{ flex: 1, minWidth: 160 }}>
               <Statistic
-                title="Receita livre"
-                value={freeRevenue}
-                formatter={() => formatCurrency(freeRevenue)}
+                title="Saldo de orçamento"
+                value={budgetBalance}
+                formatter={() => formatCurrency(budgetBalance)}
                 styles={{
                   content: {
                     color:
-                      freeRevenue < 0 ? token.colorError : token.colorSuccess,
+                      budgetBalance < 0 ? token.colorError : token.colorSuccess,
                   },
                 }}
               />

@@ -39,7 +39,7 @@ Tela **Controle** — cadastro e histórico dos gastos:
 
 Resumo visual dos gastos do grupo ativo, com filtro por período (data inicial/final):
 
-- Cards de **Gasto Planejado** e **Receita livre** (planejado menos o total já gasto no projeto inteiro, sem o filtro de período).
+- Cards de **Gasto Planejado** e **Saldo de orçamento** (planejado menos o total já gasto no projeto inteiro, sem o filtro de período; considera apenas lançamentos de saída).
 - KPIs do período filtrado: total gasto, número de lançamentos, ticket médio, categorias usadas.
 - Gráficos de barra: gasto por categoria, por fonte e por forma de pagamento.
 - Gráfico de coluna: evolução mensal do gasto.

@@ -13,7 +13,10 @@ export type ActiveBrand = {
   companyName: string;
   /** Só as marcas locais de dev (brands.ts) definem isto. */
   titleSuffix?: string;
-  logoUrl: string | null;
+  /** Variante para fundo claro (ex.: card de login). */
+  logoDarkUrl: string | null;
+  /** Variante para fundo escuro (ex.: sider/drawer navy). */
+  logoLightUrl: string | null;
   faviconUrl: string | null;
   primaryColor: string;
   secondaryColor: string;
@@ -22,11 +25,17 @@ export type ActiveBrand = {
   gradientTo: string | null;
 };
 
+/**
+ * O doc `Branding` do backend só tem um `logoUrl` (asset único enviado pelo
+ * tenant), diferente das marcas locais de dev que têm variantes dark/light
+ * dedicadas (ver brands.ts). Mapeia o mesmo valor para os dois tons.
+ */
 export function toActiveBrand(branding: Branding): ActiveBrand {
   return {
     key: branding.key,
     companyName: branding.companyName,
-    logoUrl: branding.logoUrl,
+    logoDarkUrl: branding.logoUrl,
+    logoLightUrl: branding.logoUrl,
     faviconUrl: branding.faviconUrl,
     primaryColor: branding.primaryColor,
     secondaryColor: branding.secondaryColor,

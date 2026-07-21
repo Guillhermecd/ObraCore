@@ -1,0 +1,8 @@
+<svg viewBox="0 0 480 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="oak">
+  <g fill="currentColor" stroke="currentColor">
+  <polyline points="82,98 22,184 82,270" fill="none" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="398,98 458,184 398,270" fill="none" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path stroke="none" d="M240 118 C198 118 168 133 162 160 C157 186 159 219 178 249 C193 270 218 279 240 279 C262 279 287 270 302 249 C321 219 323 186 318 160 C312 133 282 118 240 118 Z"/>
+  <path stroke="none" d="M178 127 C169 127 161 120 160 105 C160 76 190 52 240 52 C290 52 320 76 320 105 C320 120 311 127 302 127 C285 131 263 132 240 132 C217 132 195 131 178 127 Z"/>
+  </g>
+</svg>

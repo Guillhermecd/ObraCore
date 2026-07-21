@@ -1,7 +1,7 @@
 import type { ActiveBrand } from "./types";
 
 const DEFAULT_TITLE = "ObraCore · OAKSD";
-const DEFAULT_FAVICON = "/logos/oaksd-favicon-32.png";
+const DEFAULT_FAVICON = "/OakSD/favicon-32x32.png";
 
 /**
  * Efeitos colaterais de chrome do navegador (título da aba, favicon) que

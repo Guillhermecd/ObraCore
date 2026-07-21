@@ -39,6 +39,93 @@ export function resolveBrandColors(branding: ActiveBrand | null): BrandColors {
   };
 }
 
+/**
+ * Paleta completa do tema escuro de uma marca. Independente de
+ * `BrandColors` (paleta clara) de propósito: o dark theme não é derivado
+ * da cor clara, é definido à parte — permite ajustar cada marca sem afetar
+ * as outras nem o tema claro (ver BRAND_DARK_THEMES abaixo).
+ */
+export type BrandDarkTheme = {
+  colorPrimary: string;
+  colorAccent: string;
+  colorText: string;
+  colorTextHeading: string;
+  colorTextSecondary: string;
+  colorBgBase: string;
+  colorBgLayout: string;
+  colorBorder: string;
+  siderBg: string;
+  headerBg: string;
+  bodyBg: string;
+  menuSelectedBg: string;
+  menuHoverBg: string;
+};
+
+/** OAKSD — default de plataforma / tenants de backend sem dark theme próprio. */
+const DEFAULT_DARK_THEME: BrandDarkTheme = {
+  colorPrimary: "#F97316",
+  colorAccent: "#FB923C",
+  colorText: "#ECF0F3",
+  colorTextHeading: "#FFFFFF",
+  colorTextSecondary: "#9CA3AF",
+  colorBgBase: "#0A0A0A",
+  colorBgLayout: "#171717",
+  colorBorder: "#2A2A2A",
+  siderBg: "#111111",
+  headerBg: "#171717",
+  bodyBg: "#171717",
+  menuSelectedBg: "#F97316",
+  menuHoverBg: "#7C2D12",
+};
+
+/**
+ * PONTO ÚNICO DE EDIÇÃO do tema escuro de cada marca. Keyed por
+ * `branding.key`/LOCAL_BRANDS key (ver frontend/src/branding/brands.ts).
+ * Cada entrada é livre para ajustar independentemente das outras — não há
+ * derivação automática a partir da cor clara.
+ */
+const BRAND_DARK_THEMES: Record<string, BrandDarkTheme> = {
+  obracore: DEFAULT_DARK_THEME,
+  cep: {
+    colorPrimary: "#16A34A",
+    colorAccent: "#4ADE80",
+    colorText: "#E7F5EC",
+    colorTextHeading: "#FFFFFF",
+    colorTextSecondary: "#86B899",
+    colorBgBase: "#0A1F14",
+    colorBgLayout: "#0F2A1C",
+    colorBorder: "#1E4632",
+    siderBg: "#103D24",
+    headerBg: "#0F2A1C",
+    bodyBg: "#0F2A1C",
+    menuSelectedBg: "#16A34A",
+    menuHoverBg: "#14532D",
+  },
+  ghengenharia: {
+    colorPrimary: "#1A80C9",
+    colorAccent: "#07A2E4",
+    colorText: "#E7EEF7",
+    colorTextHeading: "#FFFFFF",
+    colorTextSecondary: "#8DA3C4",
+    colorBgBase: "#0B1220",
+    colorBgLayout: "#111C33",
+    colorBorder: "#24345C",
+    siderBg: "#16234A",
+    headerBg: "#111C33",
+    bodyBg: "#111C33",
+    menuSelectedBg: "#1A80C9",
+    menuHoverBg: "#3550A2",
+  },
+};
+
+/** key desconhecida/nula (tenant não resolvido) => dark theme da OAKSD. */
+export function resolveBrandDarkTheme(brandKey: string | null): BrandDarkTheme {
+  if (!brandKey) {
+    return DEFAULT_DARK_THEME;
+  }
+  return BRAND_DARK_THEMES[brandKey] ?? DEFAULT_DARK_THEME;
+}
+
 export function hexToRgba(hex: string, alpha: number): string {
   const normalized = hex.replace("#", "");
   const value = parseInt(normalized, 16);
@@ -64,8 +151,16 @@ function darkenHex(hex: string, amount: number): string {
  * Substitui os antigos objetos estáticos `bimdTheme`/`bimdDarkTheme` — a
  * marca agora é resolvida em runtime (branding do tenant, ou OAKSD como
  * default), não hardcoded no bundle.
+ *
+ * `brandKey` seleciona o dark theme individual em BRAND_DARK_THEMES (só
+ * usado no branch `dark`); o branch `light` continua derivado de `brand`
+ * (BrandColors), sem mudança de comportamento.
  */
-export function buildAppTheme(brand: BrandColors, mode: "light" | "dark"): ThemeConfig {
+export function buildAppTheme(
+  brand: BrandColors,
+  mode: "light" | "dark",
+  brandKey: string | null = null,
+): ThemeConfig {
   const shared = {
     borderRadius: 8,
     controlHeight: 40,
@@ -93,33 +188,34 @@ export function buildAppTheme(brand: BrandColors, mode: "light" | "dark"): Theme
   };
 
   if (mode === "dark") {
+    const dark = resolveBrandDarkTheme(brandKey);
     return {
       algorithm: theme.darkAlgorithm,
       token: {
-        colorPrimary: brand.primary,
-        colorInfo: brand.accent,
-        colorLink: brand.primary,
-        colorText: "#ECF0F3",
-        colorTextHeading: "#FFFFFF",
-        colorTextSecondary: "#9CA3AF",
-        colorBgBase: "#111827",
-        colorBgLayout: "#1F2937",
-        colorBorder: "#374151",
+        colorPrimary: dark.colorPrimary,
+        colorInfo: dark.colorAccent,
+        colorLink: dark.colorPrimary,
+        colorText: dark.colorText,
+        colorTextHeading: dark.colorTextHeading,
+        colorTextSecondary: dark.colorTextSecondary,
+        colorBgBase: dark.colorBgBase,
+        colorBgLayout: dark.colorBgLayout,
+        colorBorder: dark.colorBorder,
         ...shared,
       },
       components: {
         ...sharedComponents,
         Layout: {
-          bodyBg: "#1F2937",
-          headerBg: "#111827",
-          siderBg: "#111827",
-          triggerBg: "#111827",
+          bodyBg: dark.bodyBg,
+          headerBg: dark.headerBg,
+          siderBg: dark.siderBg,
+          triggerBg: dark.siderBg,
         },
         Menu: {
-          darkItemBg: "#111827",
-          darkSubMenuItemBg: "#111827",
-          darkItemSelectedBg: brand.primary,
-          darkItemHoverBg: "#1F2937",
+          darkItemBg: dark.siderBg,
+          darkSubMenuItemBg: dark.siderBg,
+          darkItemSelectedBg: dark.menuSelectedBg,
+          darkItemHoverBg: dark.menuHoverBg,
         },
       },
     };

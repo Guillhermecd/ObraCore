@@ -26,7 +26,7 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { authStorage } from "../api/modules/api";
 import { BrandLogo } from "../branding/BrandLogo";
 import { useBranding } from "../branding/BrandingContext";
-import { resolveBrandColors } from "../theme";
+import { resolveBrandColors, resolveBrandDarkTheme } from "../theme";
 import { useTheme } from "../themeContext";
 import { GroupProvider } from "./GroupProvider";
 import { useActiveGroup } from "./groupContext";
@@ -96,6 +96,7 @@ function PrivateLayoutContent() {
 
   const branding = useBranding();
   const brandColors = resolveBrandColors(branding);
+  const brandDarkTheme = resolveBrandDarkTheme(branding?.key ?? null);
   const brandName = branding?.companyName ?? "OAKSD";
 
   const [mobileHeaderContent, setMobileHeaderContent] = useState<ReactNode>(brandName);
@@ -231,7 +232,9 @@ function PrivateLayoutContent() {
             collapsible
             collapsed={collapsed}
             onCollapse={setCollapsed}
-            style={{ background: themeMode === "dark" ? "#111827" : brandColors.secondary }}
+            style={{
+              background: themeMode === "dark" ? brandDarkTheme.siderBg : brandColors.secondary,
+            }}
           >
             <div style={collapsed ? collapsedLogoStyle : logoStyle}>
               <BrandLogo
@@ -292,9 +295,12 @@ function PrivateLayoutContent() {
           onClose={() => setDrawerOpen(false)}
           closable={false}
           styles={{
-            body: { padding: "12px 0", background: themeMode === "dark" ? "#111827" : brandColors.secondary },
+            body: {
+              padding: "12px 0",
+              background: themeMode === "dark" ? brandDarkTheme.siderBg : brandColors.secondary,
+            },
             header: {
-              background: themeMode === "dark" ? "#111827" : brandColors.secondary,
+              background: themeMode === "dark" ? brandDarkTheme.siderBg : brandColors.secondary,
               borderBottom: 0,
               padding: "24px 28px",
               textAlign: "center",

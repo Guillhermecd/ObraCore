@@ -16,7 +16,7 @@ dayjs.locale("pt-br");
 function AppContent() {
   const { themeMode } = useTheme();
   const branding = useBranding();
-  const currentTheme = buildAppTheme(resolveBrandColors(branding), themeMode);
+  const currentTheme = buildAppTheme(resolveBrandColors(branding), themeMode, branding?.key ?? null);
 
   return (
     <ConfigProvider theme={currentTheme} locale={ptBR}>

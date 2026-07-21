@@ -3,9 +3,9 @@ import type { ActiveBrand } from "./types";
 
 /**
  * Registro client-side de marcas para teste local multi-host, sem
- * depender de seed no backend nem de assets de logo (chegam nas Fases
- * 4/5 — até lá BrandLogo mostra o nome da empresa como texto). Mapeado a
- * partir do hostname por DEV_HOST_BRAND_KEYS em resolveTenantKey.ts.
+ * depender de seed no backend. Assets de logo/favicon servidos de
+ * public/<Pasta>/ (Vite serve public/ na raiz `/`); mapeado a partir do
+ * hostname por DEV_HOST_BRAND_KEYS em resolveTenantKey.ts.
  *
  * O caminho de produção (subdomínio real) não usa este registro — busca
  * o branding via GET /api/public/branding.
@@ -19,8 +19,9 @@ export const LOCAL_BRANDS: Record<string, ActiveBrand> = {
     key: "obracore",
     companyName: "ObraCore",
     titleSuffix: "OAKSD",
-    logoUrl: null,
-    faviconUrl: null,
+    logoDarkUrl: "/OakSD/oak-logo-dark.svg",
+    logoLightUrl: "/OakSD/oak-logo-light.svg",
+    faviconUrl: "/OakSD/favicon-32x32.png",
     primaryColor: oaksdColors.primary,
     secondaryColor: oaksdColors.secondary,
     accentColor: oaksdColors.accent,
@@ -31,8 +32,9 @@ export const LOCAL_BRANDS: Record<string, ActiveBrand> = {
     key: "cep",
     companyName: "CeP",
     titleSuffix: "ObraCore",
-    logoUrl: null,
-    faviconUrl: null,
+    logoDarkUrl: "/CeP/CeP.jpg",
+    logoLightUrl: "/CeP/CeP.jpg",
+    faviconUrl: "/CeP/favicon.ico",
     primaryColor: "#16A34A",
     secondaryColor: "#14532D",
     accentColor: "#4ADE80",
@@ -43,8 +45,9 @@ export const LOCAL_BRANDS: Record<string, ActiveBrand> = {
     key: "ghengenharia",
     companyName: "GHEngenharia",
     titleSuffix: "ObraCore",
-    logoUrl: null,
-    faviconUrl: null,
+    logoDarkUrl: "/GHEngenharia/ghengenharia.png",
+    logoLightUrl: "/GHEngenharia/ghengenharia.png",
+    faviconUrl: "/GHEngenharia/ghengenharia-favicon-32.png",
     primaryColor: "#1A80C9",
     secondaryColor: "#3550A2",
     accentColor: "#07A2E4",

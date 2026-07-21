@@ -3,6 +3,10 @@ import { useBranding } from "./BrandingContext";
 
 const DEFAULT_COMPANY_NAME = "OAKSD";
 
+/** Default de plataforma (sem tenant resolvido) => logo OakSD por tom. */
+const DEFAULT_LOGO_DARK = "/OakSD/oak-logo-dark.svg";
+const DEFAULT_LOGO_LIGHT = "/OakSD/oak-logo-light.svg";
+
 const TONE_COLORS = {
   dark: "#102A43",
   light: "#FFFFFF",
@@ -29,26 +33,33 @@ type BrandLogoProps = {
 };
 
 /**
- * Logo é imagem, não CSS: um único asset por marca (branding.logoUrl),
- * dimensionado via `style` pelo chamador (login, sider expandido/
- * colapsado, drawer mobile). Sem doc de branding => logo default OAKSD.
+ * Logo é imagem, não CSS: até duas variantes por marca (dark/light,
+ * branding.logoDarkUrl/logoLightUrl), escolhidas pela prop `tone` e
+ * dimensionadas via `style` pelo chamador (login, sider expandido/
+ * colapsado, drawer mobile).
  *
- * Enquanto os assets reais não chegam (Fase 4) — e para as marcas locais
- * de dev em brands.ts, que não têm PNG — `logoUrl: null` cai num
- * wordmark de texto com o nome da empresa, em vez de uma <img> quebrada.
+ * Sem doc de branding (tenant não resolvido) => default de plataforma é a
+ * própria logo OakSD, também por tom. Só cai no wordmark de texto com o
+ * nome da empresa se houver um tenant de backend sem asset para o tom
+ * pedido (`logoDarkUrl`/`logoLightUrl` nulos).
  */
 export function BrandLogo({ style, tone = "dark" }: Readonly<BrandLogoProps>) {
   const branding = useBranding();
 
-  if (!branding?.logoUrl) {
+  if (!branding) {
+    const defaultSrc = tone === "light" ? DEFAULT_LOGO_LIGHT : DEFAULT_LOGO_DARK;
+    return <img src={defaultSrc} alt={DEFAULT_COMPANY_NAME} style={style} />;
+  }
+
+  const logoSrc = tone === "light" ? branding.logoLightUrl : branding.logoDarkUrl;
+
+  if (!logoSrc) {
     return (
       <span style={{ ...wordmarkBaseStyle, color: TONE_COLORS[tone], ...style }}>
-        {branding?.companyName ?? DEFAULT_COMPANY_NAME}
+        {branding.companyName}
       </span>
     );
   }
 
-  return (
-    <img src={branding.logoUrl} alt={branding.companyName} style={style} />
-  );
+  return <img src={logoSrc} alt={branding.companyName} style={style} />;
 }

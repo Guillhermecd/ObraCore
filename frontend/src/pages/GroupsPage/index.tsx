@@ -17,6 +17,7 @@ import { GroupInviteService } from "../../api/modules/GroupInviteService";
 import type { ReceivedGroupInvite, SentGroupInvite } from "../../api/modules/types";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
+import { GROUP_ROLE_LABEL, permissionsFor } from "../../utils/roles";
 import { CreateGroupModal } from "./CreateGroupModal";
 import { ManageGroupModal } from "./ManageGroupModal";
 
@@ -167,7 +168,9 @@ export function GroupsPage() {
               );
             }
 
-            if (group.isOwner) {
+            // Admin também gerencia (colaboradores e convites); o que é só do
+            // dono fica escondido dentro do modal.
+            if (permissionsFor(group.myRole).canManageMembers) {
               actions.push(
                 <Button
                   key="manage"
@@ -189,7 +192,9 @@ export function GroupsPage() {
                       {group.id === activeGroupId && (
                         <Tag color="blue">Ativo</Tag>
                       )}
-                      {group.isOwner && <Tag color="gold">Dono</Tag>}
+                      <Tag color={group.myRole === "MASTER" ? "gold" : "default"}>
+                        {GROUP_ROLE_LABEL[group.myRole]}
+                      </Tag>
                     </Space>
                   }
                   description={
@@ -235,7 +240,7 @@ export function GroupsPage() {
                 >
                   <List.Item.Meta
                     title={invite.groupName}
-                    description={invite.inviteeEmail}
+                    description={`${invite.inviteeEmail} · como ${GROUP_ROLE_LABEL[invite.role]}`}
                   />
                 </List.Item>
               )}
@@ -272,7 +277,7 @@ export function GroupsPage() {
                 >
                   <List.Item.Meta
                     title={invite.groupName}
-                    description={`Convidado por ${invite.inviterName}`}
+                    description={`Convidado por ${invite.inviterName} · como ${GROUP_ROLE_LABEL[invite.role]}`}
                   />
                 </List.Item>
               )}

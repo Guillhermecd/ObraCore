@@ -1,12 +1,12 @@
 import { api } from "./api";
 import type { MessageResponse, User } from "./types";
 
-export type LoginPayload = {
+type LoginPayload = {
   email: string;
   password: string;
 };
 
-export type RegisterPayload = {
+type RegisterPayload = {
   email: string;
   emailConfirmation: string;
   password: string;
@@ -14,17 +14,17 @@ export type RegisterPayload = {
   name?: string;
 };
 
-export type ForgotPasswordPayload = {
+type ForgotPasswordPayload = {
   email: string;
 };
 
-export type ResetPasswordPayload = {
+type ResetPasswordPayload = {
   token?: string;
   password: string;
   passwordConfirmation: string;
 };
 
-export type ResendVerificationPayload = {
+type ResendVerificationPayload = {
   email?: string;
 };
 

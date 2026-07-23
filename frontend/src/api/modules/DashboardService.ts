@@ -1,13 +1,44 @@
 import { api } from "./api";
-import type { DashboardOverviewResponse, MovimentacoesResponse } from "./types";
+import type {
+  CashflowForecastResponse,
+  DashboardAlert,
+  DashboardObraResponse,
+  DashboardSummaryResponse,
+  MovimentacoesResponse,
+  ProjectPerformance,
+} from "./types";
+
+function periodParams(params: URLSearchParams, from?: string, to?: string) {
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  return params;
+}
 
 export const DashboardService = {
-  overview() {
-    return api<DashboardOverviewResponse>("/dashboard/overview");
-  },
-  movimentacoes(page: number, limit: number) {
-    return api<MovimentacoesResponse>(
-      `/dashboard/movimentacoes?page=${page}&limit=${limit}`,
+  movimentacoes(page: number, limit: number, from?: string, to?: string) {
+    const params = periodParams(
+      new URLSearchParams({ page: String(page), limit: String(limit) }),
+      from,
+      to,
     );
+    return api<MovimentacoesResponse>(
+      `/dashboard/movimentacoes?${params.toString()}`,
+    );
+  },
+  summary() {
+    return api<DashboardSummaryResponse>("/dashboard/summary");
+  },
+  cashflowForecast() {
+    return api<CashflowForecastResponse>("/dashboard/cashflow-forecast");
+  },
+  alerts() {
+    return api<DashboardAlert[]>("/dashboard/alerts");
+  },
+  projectsPerformance() {
+    return api<ProjectPerformance[]>("/dashboard/projects-performance");
+  },
+  obra(groupId: string, from?: string, to?: string) {
+    const params = periodParams(new URLSearchParams({ groupId }), from, to);
+    return api<DashboardObraResponse>(`/dashboard/obra?${params.toString()}`);
   },
 };

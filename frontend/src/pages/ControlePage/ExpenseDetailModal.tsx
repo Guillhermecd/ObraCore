@@ -8,7 +8,8 @@ import type {
   ExpenseCategory,
   ExpenseSource,
 } from "../../api/modules/types";
-import { formatCurrency } from "../../utils/format";
+import { usePrivacyFormat } from "../../privacyContext";
+import { usePermissions } from "../../layouts/usePermissions";
 
 const { Text } = Typography;
 
@@ -35,6 +36,8 @@ export function ExpenseDetailModal({
   onDeleted,
 }: Props) {
   const { token } = theme.useToken();
+  const { formatCurrency } = usePrivacyFormat();
+  const { canWrite } = usePermissions();
   const [messageApi, contextHolder] = message.useMessage();
 
   if (!expense) {
@@ -76,21 +79,27 @@ export function ExpenseDetailModal({
       open
       onCancel={onClose}
       destroyOnHidden
-      footer={[
-        <Popconfirm
-          key="delete"
-          title="Excluir lançamento?"
-          okText="Excluir"
-          cancelText="Cancelar"
-          okButtonProps={{ danger: true }}
-          onConfirm={remove}
-        >
-          <Button danger>Excluir</Button>
-        </Popconfirm>,
-        <Button key="edit" type="primary" onClick={() => onEdit(expense)}>
-          Editar
-        </Button>,
-      ]}
+      // Fiscal abre o detalhe para consultar, mas sem as ações — o modal vira
+      // só leitura.
+      footer={
+        canWrite
+          ? [
+              <Popconfirm
+                key="delete"
+                title="Excluir lançamento?"
+                okText="Excluir"
+                cancelText="Cancelar"
+                okButtonProps={{ danger: true }}
+                onConfirm={remove}
+              >
+                <Button danger>Excluir</Button>
+              </Popconfirm>,
+              <Button key="edit" type="primary" onClick={() => onEdit(expense)}>
+                Editar
+              </Button>,
+            ]
+          : null
+      }
     >
       {contextHolder}
       <div style={rowStyle}>

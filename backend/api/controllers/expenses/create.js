@@ -34,6 +34,10 @@ module.exports = async function create(req, res) {
 
   const groupId = await sails.services.groupservice.resolveGroupId(req);
 
+  if (!(await sails.services.groupservice.requireWrite(req, res, groupId))) {
+    return;
+  }
+
   const category = await ExpenseCategory.findOne({ id: categoryId, groupId });
   if (!category) {
     return res.badRequest({ message: 'Categoria inválida.' });

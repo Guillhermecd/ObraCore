@@ -1,7 +1,3 @@
-function nowIso() {
-  return new Date().toISOString();
-}
-
 module.exports = {
   tableName: 'branding',
 
@@ -22,7 +18,7 @@ module.exports = {
       if (valuesToSet.key) {
         valuesToSet.key = valuesToSet.key.toLowerCase().trim();
       }
-      const timestamp = nowIso();
+      const timestamp = sails.services.timeservice.nowIso();
       valuesToSet.createdAt = timestamp;
       valuesToSet.updatedAt = timestamp;
       return proceed();
@@ -36,7 +32,7 @@ module.exports = {
       if (valuesToSet.key) {
         valuesToSet.key = valuesToSet.key.toLowerCase().trim();
       }
-      valuesToSet.updatedAt = nowIso();
+      valuesToSet.updatedAt = sails.services.timeservice.nowIso();
       return proceed();
     } catch (error) {
       return proceed(error);

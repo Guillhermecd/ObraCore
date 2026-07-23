@@ -1,7 +1,3 @@
-function nowIso() {
-  return new Date().toISOString();
-}
-
 module.exports = {
   tableName: 'expense_categories',
 
@@ -18,7 +14,7 @@ module.exports = {
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {
     try {
-      const timestamp = nowIso();
+      const timestamp = sails.services.timeservice.nowIso();
       valuesToSet.createdAt = timestamp;
       valuesToSet.updatedAt = timestamp;
       return proceed();
@@ -29,7 +25,7 @@ module.exports = {
 
   beforeUpdate: async function beforeUpdate(valuesToSet, proceed) {
     try {
-      valuesToSet.updatedAt = nowIso();
+      valuesToSet.updatedAt = sails.services.timeservice.nowIso();
       return proceed();
     } catch (error) {
       return proceed(error);

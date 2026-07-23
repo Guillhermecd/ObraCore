@@ -10,6 +10,7 @@ import { BrandingProvider } from "./branding/BrandingProvider";
 import { useBranding } from "./branding/BrandingContext";
 import { buildAppTheme, resolveBrandColors } from "./theme";
 import { ThemeProvider, useTheme } from "./themeContext";
+import { PrivacyProvider } from "./privacyContext";
 
 dayjs.locale("pt-br");
 
@@ -29,7 +30,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrandingProvider>
       <ThemeProvider>
-        <AppContent />
+        <PrivacyProvider>
+          <AppContent />
+        </PrivacyProvider>
       </ThemeProvider>
     </BrandingProvider>
   </StrictMode>,

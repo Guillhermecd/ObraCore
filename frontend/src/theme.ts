@@ -67,7 +67,7 @@ const DEFAULT_DARK_THEME: BrandDarkTheme = {
   colorAccent: "#FB923C",
   colorText: "#ECF0F3",
   colorTextHeading: "#FFFFFF",
-  colorTextSecondary: "#9CA3AF",
+  colorTextSecondary: "#94A3B8",
   colorBgBase: "#0A0A0A",
   colorBgLayout: "#171717",
   colorBorder: "#2A2A2A",
@@ -229,7 +229,12 @@ export function buildAppTheme(
       colorLink: brand.primary,
       colorText: "#1F2933",
       colorTextHeading: "#102A43",
-      colorTextSecondary: "#627D98",
+      // #627D98 dava 4,28:1 sobre card branco e 3,95:1 sobre o fundo do
+      // layout — abaixo do mínimo de 4,5:1 de acessibilidade, e o texto
+      // secundário é justamente onde ficam as notas de 12px. Este valor dá
+      // 5,29:1 no card e 4,88:1 no fundo. (Os temas escuros já passavam,
+      // todos acima de 6,6:1.)
+      colorTextSecondary: "#556E88",
       colorBgBase: "#FFFFFF",
       colorBgLayout: "#F4F6F8",
       colorBorder: "#E5E7EB",

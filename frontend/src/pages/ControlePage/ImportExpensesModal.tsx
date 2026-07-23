@@ -16,12 +16,13 @@ import {
 import dayjs from "dayjs";
 import type { CSSProperties } from "react";
 import { useState } from "react";
+import { triggerBlobDownload } from "../../api/modules/api";
 import { ExpenseService } from "../../api/modules/ExpenseService";
 import type {
   ExpenseImportPreviewResponse,
   ExpenseImportRow,
 } from "../../api/modules/types";
-import { formatCurrency } from "../../utils/format";
+import { usePrivacyFormat } from "../../privacyContext";
 
 const { Dragger } = Upload;
 const { Paragraph } = Typography;
@@ -58,14 +59,7 @@ function downloadTemplate() {
   const blob = new Blob([csvLines.join("\n")], {
     type: "text/csv;charset=utf-8;",
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "modelo-lancamentos.csv";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  triggerBlobDownload(blob, "modelo-lancamentos.csv");
 }
 
 type Step = "upload" | "preview";
@@ -78,6 +72,7 @@ type Props = {
 
 export function ImportExpensesModal({ open, onClose, onImported }: Props) {
   const { token } = theme.useToken();
+  const { formatCurrency } = usePrivacyFormat();
   const hintStyle: CSSProperties = {
     color: token.colorTextSecondary,
   };

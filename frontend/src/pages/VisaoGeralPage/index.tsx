@@ -1,9 +1,7 @@
 import {
   Card,
+  DatePicker,
   Empty,
-  Grid,
-  Progress,
-  Statistic,
   Table,
   Tag,
   message,
@@ -11,21 +9,32 @@ import {
   type TableColumnsType,
   type TablePaginationConfig,
 } from "antd";
-import dayjs from "dayjs";
+import dayjs, { type Dayjs } from "dayjs";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardService } from "../../api/modules/DashboardService";
 import type {
-  DashboardProjeto,
-  DashboardTotais,
+  DashboardAlert,
+  CashflowForecastResponse,
+  DashboardSummaryResponse,
   ExpenseTipo,
   Movimentacao,
   MovimentacaoStatus,
+  ProjectPerformance,
 } from "../../api/modules/types";
+import { SectionBlock } from "../../components/SectionBlock";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
-import { formatCurrency } from "../../utils/format";
+import { usePrivacyFormat } from "../../privacyContext";
+import { AlertsPanel } from "./AlertsPanel";
+import { CashFlowForecast } from "./CashFlowForecast";
+import { ExecutiveSummary } from "./ExecutiveSummary";
+import { ProjectPerformanceCards } from "./ProjectPerformanceCards";
+import { ResultBlock } from "./ResultBlock";
+import { ResultadoRealizadoBlock } from "./ResultadoRealizadoBlock";
+
+const { RangePicker } = DatePicker;
 
 const PAGE_SIZE = 20;
 
@@ -42,89 +51,124 @@ const STATUS_COLOR: Record<MovimentacaoStatus, string> = {
 };
 
 const pageHeaderRowStyle: CSSProperties = {
-  marginBottom: 20,
-};
-
-const kpiGridStyle: CSSProperties = {
-  display: "grid",
-  gap: 16,
-  marginBottom: 24,
-};
-
-const projectsGridStyle: CSSProperties = {
-  display: "grid",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  flexWrap: "wrap",
   gap: 16,
   marginBottom: 24,
 };
 
 export function VisaoGeralPage() {
   const { token } = theme.useToken();
-  const screens = Grid.useBreakpoint();
-  const isDesktop = Boolean(screens.md);
-  usePrivateMobileHeader("Visão Geral");
+  const { formatCurrency } = usePrivacyFormat();
+  usePrivateMobileHeader("Consolidado");
   const navigate = useNavigate();
   const { setActiveGroupId } = useActiveGroup();
   const [messageApi, contextHolder] = message.useMessage();
 
-  const pageTitleStyle: CSSProperties = {
-    margin: 0,
-    color: token.colorTextHeading,
-    fontSize: 26,
-  };
+  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
 
-  const pageDescriptionStyle: CSSProperties = {
-    margin: "4px 0 0",
-    color: token.colorTextSecondary,
-  };
+  const [forecast, setForecast] = useState<CashflowForecastResponse | null>(
+    null,
+  );
+  const [forecastLoading, setForecastLoading] = useState(true);
 
-  const [totais, setTotais] = useState<DashboardTotais>({
-    entradas: 0,
-    saidas: 0,
-    saldo: 0,
-  });
-  const [projetos, setProjetos] = useState<DashboardProjeto[]>([]);
-  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+
+  const [projects, setProjects] = useState<ProjectPerformance[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
 
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
-  const [movLoading, setMovLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
+
+  // `movLoading` é derivado da chave da requisição em curso — trocar de
+  // página ou de período já entra em carregamento no mesmo render, sem um
+  // setState a mais dentro do efeito.
+  const from = range?.[0]?.format("YYYY-MM-DD");
+  const to = range?.[1]?.format("YYYY-MM-DD");
+  const movKey = `${page}|${from ?? ""}|${to ?? ""}`;
+  const [loadedMovKey, setLoadedMovKey] = useState<string | null>(null);
+  const movLoading = loadedMovKey !== movKey;
 
   useEffect(() => {
-    DashboardService.overview()
-      .then((response) => {
-        setTotais(response.totais);
-        setProjetos(response.projetos);
-      })
+    DashboardService.summary()
+      .then((response) => setSummary(response))
       .catch((error: unknown) => {
         messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar visão geral.",
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar o consolidado de caixa.",
         );
       })
-      .finally(() => setOverviewLoading(false));
+      .finally(() => setSummaryLoading(false));
   }, [messageApi]);
 
   useEffect(() => {
-    DashboardService.movimentacoes(page, PAGE_SIZE)
+    DashboardService.cashflowForecast()
+      .then((response) => setForecast(response))
+      .catch((error: unknown) => {
+        messageApi.error(
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar fluxo de caixa previsto.",
+        );
+      })
+      .finally(() => setForecastLoading(false));
+  }, [messageApi]);
+
+  useEffect(() => {
+    DashboardService.alerts()
+      .then((response) => setAlerts(response))
+      .catch((error: unknown) => {
+        messageApi.error(
+          error instanceof Error ? error.message : "Erro ao carregar alertas.",
+        );
+      })
+      .finally(() => setAlertsLoading(false));
+  }, [messageApi]);
+
+  useEffect(() => {
+    DashboardService.projectsPerformance()
+      .then((response) => setProjects(response))
+      .catch((error: unknown) => {
+        messageApi.error(
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar desempenho das obras.",
+        );
+      })
+      .finally(() => setProjectsLoading(false));
+  }, [messageApi]);
+
+  // Só o histórico responde ao filtro de período: todo o resto da tela é
+  // acumulado, e recortá-lo por janela não faria sentido.
+  useEffect(() => {
+    DashboardService.movimentacoes(page, PAGE_SIZE, from, to)
       .then((response) => {
         setMovimentacoes(response.items);
         setTotal(response.total);
       })
       .catch((error: unknown) => {
         messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar movimentações.",
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar movimentações.",
         );
       })
-      .finally(() => setMovLoading(false));
-  }, [messageApi, page]);
+      .finally(() => setLoadedMovKey(movKey));
+  }, [messageApi, page, from, to, movKey]);
 
   function openProjectDashboard(groupId: string) {
     setActiveGroupId(groupId);
-    navigate("/dashboard");
+    navigate("/obra");
   }
 
   function handleTableChange(pagination: TablePaginationConfig) {
-    setMovLoading(true);
     setPage(pagination.current ?? 1);
   }
 
@@ -136,7 +180,7 @@ export function VisaoGeralPage() {
       render: (value: string) => dayjs(value).format("DD/MM/YYYY"),
     },
     {
-      title: "Projeto",
+      title: "Obra",
       dataIndex: "projeto",
       key: "projeto",
       render: (value: string | null) => value ?? "—",
@@ -177,118 +221,100 @@ export function VisaoGeralPage() {
     <section>
       {contextHolder}
       <div style={pageHeaderRowStyle}>
-        <h1 style={pageTitleStyle}>Visão Geral</h1>
-        <p style={pageDescriptionStyle}>
-          Caixa consolidado de todos os seus grupos, com resumo por projeto e
-          histórico geral de movimentações.
-        </p>
+        <div>
+          <h1
+            style={{ margin: 0, color: token.colorTextHeading, fontSize: 26 }}
+          >
+            Consolidado — Financeiro
+          </h1>
+          <p
+            style={{
+              margin: "4px 0 0",
+              color: token.colorTextSecondary,
+              fontSize: 13,
+            }}
+          >
+            Caixa e resultado de todas as obras. O filtro de período governa
+            apenas o histórico.
+          </p>
+        </div>
+        <RangePicker
+          value={range}
+          onChange={(values) => {
+            setPage(1);
+            setRange(
+              values && values[0] && values[1] ? [values[0], values[1]] : null,
+            );
+          }}
+          format="DD/MM/YYYY"
+          placeholder={["Início", "Fim"]}
+          allowClear
+        />
       </div>
 
-      <div
-        style={{
-          ...kpiGridStyle,
-          gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr",
-        }}
+      <AlertsPanel
+        alerts={alerts}
+        loading={alertsLoading}
+        onViewDetails={openProjectDashboard}
+      />
+
+      <ExecutiveSummary summary={summary} loading={summaryLoading} />
+
+      <ResultBlock
+        resultado={summary?.resultado ?? null}
+        loading={summaryLoading}
+      />
+
+      <ResultadoRealizadoBlock
+        resultadoRealizado={summary?.resultadoRealizado ?? null}
+        loading={summaryLoading}
+      />
+
+      <ProjectPerformanceCards
+        projects={projects}
+        loading={projectsLoading}
+        onOpenProject={openProjectDashboard}
+      />
+
+      <CashFlowForecast
+        forecast={forecast}
+        loading={forecastLoading}
+        saldoAtual={summary?.saldoTotal ?? 0}
+      />
+
+      <SectionBlock
+        title="Histórico geral"
+        scope="periodo"
+        extra={
+          range === null ? (
+            <span style={{ fontSize: 12, color: token.colorTextSecondary }}>
+              Todo o período
+            </span>
+          ) : null
+        }
       >
-        <Card loading={overviewLoading}>
-          <Statistic
-            title="Total entrou"
-            value={totais.entradas}
-            formatter={() => formatCurrency(totais.entradas)}
-          />
-        </Card>
-        <Card loading={overviewLoading}>
-          <Statistic
-            title="Total saiu"
-            value={totais.saidas}
-            formatter={() => formatCurrency(totais.saidas)}
-          />
-        </Card>
-        <Card loading={overviewLoading}>
-          <Statistic
-            title="Saldo geral"
-            value={totais.saldo}
-            formatter={() => formatCurrency(totais.saldo)}
-            styles={{
-              content: {
-                color: totais.saldo < 0 ? token.colorError : token.colorSuccess,
-              },
+        <Card>
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={movimentacoes}
+            loading={movLoading}
+            onChange={handleTableChange}
+            scroll={{ x: "max-content" }}
+            pagination={{
+              current: page,
+              pageSize: PAGE_SIZE,
+              total,
+              showSizeChanger: false,
+            }}
+            locale={{
+              emptyText: (
+                <Empty description="Nenhuma movimentação no período selecionado." />
+              ),
             }}
           />
         </Card>
-      </div>
-
-      <div
-        style={{
-          ...projectsGridStyle,
-          gridTemplateColumns: isDesktop
-            ? "repeat(auto-fill, minmax(260px, 1fr))"
-            : "1fr",
-        }}
-      >
-        {!overviewLoading && projetos.length === 0 && (
-          <Empty description="Nenhum projeto encontrado." />
-        )}
-        {projetos.map((projeto) => (
-          <Card
-            key={projeto.id}
-            title={projeto.nome}
-            hoverable
-            loading={overviewLoading}
-            onClick={() => openProjectDashboard(projeto.id)}
-            style={{ cursor: "pointer" }}
-          >
-            <Statistic
-              title="Saldo atual"
-              value={projeto.saldoAtual}
-              formatter={() => formatCurrency(projeto.saldoAtual)}
-              styles={{
-                content: {
-                  color:
-                    projeto.saldoAtual < 0 ? token.colorError : token.colorSuccess,
-                },
-              }}
-            />
-            {projeto.gastoPlanejado ? (
-              <Progress
-                percent={Math.min(projeto.consumoPct ?? 0, 100)}
-                strokeColor={projeto.estouro ? token.colorError : token.colorSuccess}
-                format={() => `${projeto.consumoPct}%`}
-                style={{ marginTop: 12 }}
-              />
-            ) : (
-              <div
-                style={{
-                  color: token.colorTextSecondary,
-                  fontSize: 13,
-                  marginTop: 16,
-                }}
-              >
-                Sem orçamento definido
-              </div>
-            )}
-          </Card>
-        ))}
-      </div>
-
-      <Card title="Histórico geral" loading={movLoading && movimentacoes.length === 0}>
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={movimentacoes}
-          loading={movLoading}
-          onChange={handleTableChange}
-          pagination={{
-            current: page,
-            pageSize: PAGE_SIZE,
-            total,
-            showSizeChanger: false,
-          }}
-          locale={{
-            emptyText: <Empty description="Nenhuma movimentação encontrada." />,
-          }}
-        />
-      </Card>
+      </SectionBlock>
     </section>
   );
 }

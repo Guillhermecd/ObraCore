@@ -34,6 +34,11 @@ module.exports = async function importCommit(req, res) {
     }
 
     const groupId = await sails.services.groupservice.resolveGroupId(req);
+
+    if (!(await sails.services.groupservice.requireWrite(req, res, groupId))) {
+      return;
+    }
+
     const [categories, sources] = await Promise.all([
       ExpenseCategory.find({ groupId }),
       ExpenseSource.find({ groupId }),

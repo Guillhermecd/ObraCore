@@ -1,7 +1,7 @@
 import { api } from "./api";
 import type { ExpenseCategoryTipo, ExpenseSource, MessageResponse } from "./types";
 
-export type CreateExpenseSourcePayload = {
+type CreateExpenseSourcePayload = {
   name: string;
   tipo?: ExpenseCategoryTipo;
 };

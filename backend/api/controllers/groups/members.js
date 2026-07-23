@@ -12,6 +12,7 @@ module.exports = async function members(req, res) {
     members: members.map((member) => ({
       ...sails.services.authservice.sanitizeUser(member),
       isOwner: member.id === group.owner,
+      role: sails.services.groupservice.roleOf(group, member.id),
     })),
   });
 };

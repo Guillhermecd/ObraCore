@@ -1,8 +1,13 @@
 module.exports = async function create(req, res) {
-  const { groupId, email } = req.body;
+  const { groupId, email, role } = req.body;
 
   if (!groupId || !email || !email.trim()) {
     return res.badRequest({ message: 'Grupo e e-mail são obrigatórios.' });
+  }
+
+  const normalizedRole = role === undefined ? 'FISCAL' : role;
+  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'FISCAL') {
+    return res.badRequest({ message: 'Papel inválido.' });
   }
 
   const group = await Group.findOne({ id: groupId });
@@ -11,8 +16,19 @@ module.exports = async function create(req, res) {
     return res.status(404).json({ message: 'Grupo não encontrado.' });
   }
 
-  if (group.owner !== req.user.id) {
-    return res.status(403).json({ message: 'Apenas o criador do grupo pode enviar convites.' });
+  if (!sails.services.groupservice.can(group, req.user.id, 'invite')) {
+    return res.status(403).json({ message: 'Você não tem permissão para convidar colaboradores.' });
+  }
+
+  // Mesma regra de `update-member-role`: quem não é dono não cria um par que
+  // depois não poderia rebaixar.
+  if (
+    normalizedRole === 'ADMIN' &&
+    sails.services.groupservice.roleOf(group, req.user.id) !== 'MASTER'
+  ) {
+    return res.status(403).json({
+      message: 'Apenas o criador da obra pode convidar um administrador.',
+    });
   }
 
   const normalizedEmail = email.toLowerCase().trim();
@@ -46,6 +62,7 @@ module.exports = async function create(req, res) {
     inviterId: req.user.id,
     inviteeId: invitee.id,
     inviteeEmail: normalizedEmail,
+    role: normalizedRole,
   }).fetch();
 
   await sails.services.emailservice.sendMail({
@@ -62,6 +79,7 @@ module.exports = async function create(req, res) {
       groupId: invite.groupId,
       groupName: group.name,
       inviteeEmail: invite.inviteeEmail,
+      role: invite.role,
       status: invite.status,
       createdAt: invite.createdAt,
     },

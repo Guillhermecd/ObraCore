@@ -15,16 +15,19 @@ module.exports.routes = {
   'PATCH /api/profile/password': { action: 'profile/change-password' },
   'POST /api/profile/image': { action: 'profile/upload-image' },
 
-  'GET /api/storage/presigned-url': { action: 'storage/presigned-url' },
-
-  'GET /api/dashboard/overview': { action: 'dashboard/overview' },
   'GET /api/dashboard/movimentacoes': { action: 'dashboard/movimentacoes' },
+  'GET /api/dashboard/summary': { action: 'dashboard/summary' },
+  'GET /api/dashboard/cashflow-forecast': { action: 'dashboard/cashflow-forecast' },
+  'GET /api/dashboard/alerts': { action: 'dashboard/alerts' },
+  'GET /api/dashboard/projects-performance': { action: 'dashboard/projects-performance' },
+  'GET /api/dashboard/obra': { action: 'dashboard/obra' },
 
   'GET /api/groups': { action: 'groups/list' },
   'POST /api/groups': { action: 'groups/create' },
   'PATCH /api/groups/:id': { action: 'groups/update' },
   'DELETE /api/groups/:id': { action: 'groups/remove' },
   'GET /api/groups/:id/members': { action: 'groups/members' },
+  'PATCH /api/groups/:id/members/:userId': { action: 'groups/update-member-role' },
   'DELETE /api/groups/:id/members/:userId': { action: 'groups/remove-member' },
 
   'POST /api/group-invites': { action: 'group-invites/create' },

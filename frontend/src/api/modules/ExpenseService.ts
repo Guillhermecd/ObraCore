@@ -21,7 +21,7 @@ export type CreateExpensePayload = {
   dataRealizada?: string | null;
 };
 
-export type UpdateExpensePayload = Partial<CreateExpensePayload>;
+type UpdateExpensePayload = Partial<CreateExpensePayload>;
 
 type ExpenseListResponse = {
   expenses: Expense[];

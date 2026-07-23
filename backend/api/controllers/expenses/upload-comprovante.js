@@ -17,6 +17,11 @@ function uploadFile(req) {
 
 module.exports = async function uploadComprovante(req, res) {
   const groupId = await sails.services.groupservice.resolveGroupId(req);
+
+  if (!(await sails.services.groupservice.requireWrite(req, res, groupId))) {
+    return;
+  }
+
   const expense = await Expense.findOne({ id: req.params.id, groupId });
 
   if (!expense) {

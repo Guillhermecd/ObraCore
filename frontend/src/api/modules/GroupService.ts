@@ -1,13 +1,24 @@
 import { api } from "./api";
-import type { Group, GroupMember, MessageResponse } from "./types";
+import type {
+  AssignableGroupRole,
+  Group,
+  GroupMember,
+  MessageResponse,
+  SituacaoObra,
+  TipoObra,
+} from "./types";
 
-export type CreateGroupPayload = {
+type CreateGroupPayload = {
   name: string;
   description?: string;
   plannedSpending?: number;
+  tipoObra?: TipoObra;
+  valorContrato?: number | null;
+  situacao?: SituacaoObra;
+  valorFechamento?: number | null;
 };
 
-export type UpdateGroupPayload = Partial<CreateGroupPayload>;
+type UpdateGroupPayload = Partial<CreateGroupPayload>;
 
 type GroupListResponse = {
   groups: Group[];
@@ -45,6 +56,12 @@ export const GroupService = {
   },
   listMembers(id: string) {
     return api<GroupMembersResponse>(`/groups/${id}/members`);
+  },
+  updateMemberRole(id: string, userId: string, role: AssignableGroupRole) {
+    return api<MessageResponse & { role: AssignableGroupRole }>(
+      `/groups/${id}/members/${userId}`,
+      { method: "PATCH", body: JSON.stringify({ role }) },
+    );
   },
   removeMember(id: string, userId: string) {
     return api<MessageResponse>(`/groups/${id}/members/${userId}`, {

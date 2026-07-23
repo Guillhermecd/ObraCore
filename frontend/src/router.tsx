@@ -12,7 +12,7 @@ import { VisaoGeralPage } from "./pages/VisaoGeralPage";
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/dashboard" replace />,
+    element: <Navigate to="/obra" replace />,
   },
   {
     path: "/login",
@@ -30,11 +30,11 @@ export const router = createBrowserRouter([
     element: <PrivateLayout />,
     children: [
       {
-        path: "/visao-geral",
+        path: "/consolidado",
         element: <VisaoGeralPage />,
       },
       {
-        path: "/dashboard",
+        path: "/obra",
         element: <DashboardPage />,
       },
       {

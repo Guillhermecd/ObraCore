@@ -76,7 +76,7 @@ export function LoginPage() {
     try {
       const response = await AuthService.login(values);
       authStorage.setSession(response.token, response.user);
-      navigate("/dashboard", { replace: true });
+      navigate("/obra", { replace: true });
     } catch (error) {
       messageApi.error(
         error instanceof Error ? error.message : "Erro ao entrar.",

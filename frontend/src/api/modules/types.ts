@@ -80,6 +80,12 @@ export type Group = {
   plannedSpendingHistory: PlannedSpendingHistoryEntry[];
   tipoObra: TipoObra;
   valorContrato: number | null;
+  /**
+   * Equivalente a `valorContrato`, mas para obra PROPRIA: estimativa de venda
+   * informada no planejamento, só pra previsão de lucro — NÃO gera receita
+   * reconhecida (isso continua exclusivo de obra CLIENTE).
+   */
+  valorVendaEsperada: number | null;
   situacao: SituacaoObra;
   /** Só usado (e só faz sentido) quando `situacao` é CONCLUIDO. */
   valorFechamento: number | null;
@@ -249,10 +255,40 @@ export type DashboardResultadoRealizado = {
 };
 
 /**
- * Bloco de caixa do Consolidado. Todos os campos são acumulados/ponto-no-tempo:
- * não existe janela de período nem comparativo "vs. período anterior" aqui.
- * `coberturaCaixaPct` substituiu o antigo score de "saúde financeira", que não
- * tinha fórmula explicável.
+ * Resultado PROJETADO — obras EM_ANDAMENTO (exclui PLANEJADO e CONCLUIDO)
+ * dos dois tipos, considerando custo já realizado E já previsto. Responde
+ * "se tudo sair como planejado, quanto sobra". Diferente de
+ * `DashboardResultado` (percentual de avanço, só CLIENTE) e de
+ * `DashboardResultadoRealizado` (definitivo, só obra concluída).
+ */
+export type DashboardResultadoProjetado = {
+  obrasEmAndamento: number;
+  valorEsperadoTotal: number;
+  custoProjetadoTotal: number;
+  lucroProjetadoTotal: number;
+  margemPct: number | null;
+};
+
+export type PeriodoConsolidado = "mes" | "tri" | "ano";
+
+export type PeriodoRange = {
+  from: string;
+  to: string;
+  label: string;
+};
+
+/** Um ponto da tendência de 12 meses do Consolidado — sempre acumulado/snapshot até o fim daquele mês. */
+export type TrendPoint = {
+  mes: string;
+  lucroReconhecidoAcumulado: number;
+  caixaLivre: number;
+};
+
+/**
+ * Bloco de caixa do Consolidado. `saldoTotal`..`coberturaCaixaPct`,
+ * `resultadoRealizado` e `resultadoProjetado` são acumulados/ponto-no-tempo —
+ * ignoram `periodo`. Só `resultado` (e o `resultadoDeltaPct` comparativo)
+ * respondem ao `periodo` selecionado (Mês/Trimestre/Ano).
  */
 export type DashboardSummaryResponse = {
   saldoTotal: number;
@@ -260,8 +296,14 @@ export type DashboardSummaryResponse = {
   caixaLivre: number;
   aporteTotalAFazer: number;
   coberturaCaixaPct: number | null;
+  periodo: PeriodoConsolidado;
+  periodoRange: PeriodoRange;
   resultado: DashboardResultado;
+  /** Variação do lucro reconhecido vs. o período anterior de mesma duração — `null` sem base de comparação. */
+  resultadoDeltaPct: number | null;
   resultadoRealizado: DashboardResultadoRealizado;
+  resultadoProjetado: DashboardResultadoProjetado;
+  trend: TrendPoint[];
 };
 
 export type CashflowPoint = {
@@ -329,6 +371,14 @@ export type ProjectPerformance = {
   margemPct: number | null;
   margemPrevistaPct: number | null;
 
+  valorVendaEsperada: number | null;
+  /** Fixo — valor esperado (contrato ou venda) menos orçamento. Não muda com lançamento nenhum. */
+  lucroPrevisto: number | null;
+  /** custoReal + max(orçamento restante, saídas pendentes). */
+  custoProjetado: number | null;
+  /** Dinâmico — valor esperado menos custoProjetado. Só diverge do previsto quando o comprometido ultrapassa o orçamento restante. */
+  lucroProjetado: number | null;
+
   situacao: SituacaoObra;
   valorFechamento: number | null;
   /** Lucro definitivo de obra CONCLUIDO: valorFechamento − custoReal. */
@@ -360,6 +410,15 @@ export type DashboardObraResponse = {
   nome: string;
   tipoObra: TipoObra;
   valorContrato: number | null;
+  valorVendaEsperada: number | null;
+
+  situacao: SituacaoObra;
+  /** Só existe (e só faz sentido) quando `situacao` é CONCLUIDO. */
+  valorFechamento: number | null;
+  /** Definitivo: valorFechamento − custoRealizado. Captura por inteiro se o fechamento veio maior que o contrato original. */
+  lucroRealizado: number | null;
+  lucroPrevisto: number | null;
+  lucroProjetado: number | null;
 
   // Bloco de orçamento — acumulado.
   orcamentoPrevisto: number;

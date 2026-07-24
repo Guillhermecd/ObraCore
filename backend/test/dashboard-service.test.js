@@ -451,6 +451,71 @@ test('resultado consolidado ignora obra própria e só soma obra de cliente com 
   assert.equal(resultado.margemPct, 20);
 });
 
+test('resultado consolidado exclui obra CONCLUIDO — ela mora só em lucro realizado, nunca nos dois blocos', () => {
+  const groups = [
+    {
+      id: 'ativa',
+      name: 'Obra ativa',
+      isPersonal: false,
+      plannedSpending: 80000,
+      tipoObra: 'CLIENTE',
+      valorContrato: 100000,
+    },
+    {
+      id: 'concluida',
+      name: 'Obra concluída',
+      isPersonal: false,
+      plannedSpending: 70000,
+      tipoObra: 'CLIENTE',
+      valorContrato: 90000,
+      situacao: 'CONCLUIDO',
+      valorFechamento: 90000,
+    },
+  ];
+  const expenses = [
+    { groupId: 'ativa', tipo: 'SAIDA', amount: 40000, dataRealizada: '2026-01-01' },
+    { groupId: 'concluida', tipo: 'SAIDA', amount: 62400, dataRealizada: '2026-01-01' },
+  ];
+
+  const projetos = DashboardService.computeProjectPerformance(groups, expenses);
+  const resultado = DashboardService.computeResultadoConsolidado(projetos);
+  const resultadoRealizado = DashboardService.computeResultadoRealizado(projetos);
+
+  // Só a obra ativa entra no Resultado — a concluída não contribui nem um
+  // pouco, mesmo tendo receita reconhecida calculável.
+  assert.equal(resultado.contratosAtivos, 1);
+  assert.equal(resultado.receitaReconhecida, 50000); // 100.000 × 40.000/80.000
+  assert.equal(resultado.lucroReconhecido, 10000);
+
+  // A concluída aparece só no Lucro realizado, com o número definitivo.
+  assert.equal(resultadoRealizado.obrasConcluidas, 1);
+  assert.equal(resultadoRealizado.lucroRealizadoTotal, 27600); // 90.000 − 62.400
+});
+
+test('lucro realizado captura o valor de fechamento maior que o contrato original, por inteiro', () => {
+  // Cenário do usuário: contrato 150k, orçamento 140k -> lucro previsto
+  // 10k. Obra gastou exatamente o orçamento (140k) e fechou vendida por
+  // 165k (acima do contrato original) -> lucro final tem que ser 25k, não
+  // travar nos 10k previstos pelo contrato.
+  const group = {
+    id: 'gvenda',
+    name: 'Obra vendida acima do contrato',
+    isPersonal: false,
+    plannedSpending: 140000,
+    tipoObra: 'CLIENTE',
+    valorContrato: 150000,
+    situacao: 'CONCLUIDO',
+    valorFechamento: 165000,
+  };
+  const expenses = [
+    { groupId: 'gvenda', tipo: 'SAIDA', amount: 140000, dataRealizada: '2026-01-01' },
+  ];
+
+  const metrics = DashboardService.computeGroupMetrics(group, expenses);
+  assert.equal(metrics.lucroPrevisto, 10000); // 150.000 − 140.000, referência do dia do contrato
+  assert.equal(metrics.lucroRealizado, 25000); // 165.000 − 140.000, definitivo
+});
+
 test('obra sem situacao gravada resolve para EM_ANDAMENTO, sem lucro realizado', () => {
   const metrics = DashboardService.computeGroupMetrics(OBRA, OBRA_EXPENSES);
   assert.equal(metrics.situacao, 'EM_ANDAMENTO');
@@ -571,4 +636,262 @@ test('resultado realizado soma obra CLIENTE e PROPRIA concluídas, ignora obra e
   assert.equal(resultadoRealizado.custoRealizadoTotal, 85000); // 40.000 + 45.000
   assert.equal(resultadoRealizado.lucroRealizadoTotal, 85000); // 170.000 − 85.000
   assert.equal(resultadoRealizado.margemPct, 50);
+});
+
+test('obra recém-criada (orçamento definido, zero lançamentos) não gera alerta de caixa', () => {
+  // Regressão direta do bug relatado: caixa R$0 comparado contra o orçamento
+  // inteiro (R$90.000) dispararia "Caixa não cobre o orçamento restante"
+  // sempre, no instante em que a obra é criada — antes de qualquer dinheiro
+  // ter de fato entrado ou saído.
+  const group = {
+    id: 'gnovo',
+    name: 'Obra recém-criada',
+    isPersonal: false,
+    plannedSpending: 90000,
+    tipoObra: 'CLIENTE',
+    valorContrato: 100000,
+  };
+
+  const alerts = DashboardService.buildAlerts([group], []);
+  assert.deepEqual(alerts, []);
+});
+
+test('obra recém-criada não entra no aporte a fazer nem no orçamento restante do caixa consolidado', () => {
+  const groups = [
+    { id: 'gnovo', name: 'Obra recém-criada', isPersonal: false, plannedSpending: 90000 },
+    { id: 'gativa', name: 'Obra com movimento', isPersonal: false, plannedSpending: 10000 },
+  ];
+  const expenses = [
+    { groupId: 'gativa', tipo: 'SAIDA', amount: 2000, dataRealizada: '2026-01-01' },
+  ];
+
+  const projetos = DashboardService.computeProjectPerformance(groups, expenses);
+  const caixa = DashboardService.computeCaixaConsolidado(projetos);
+
+  // Só a obra com movimento entra no aporte a fazer e no orçamento restante:
+  // aporte a fazer 10.000 (nada aportado ainda), orçamento restante
+  // 10.000 − 2.000 = 8.000. Os 90.000 da obra nova ficam de fora — se
+  // entrassem, aporteTotalAFazer seria 100.000.
+  assert.equal(caixa.aporteTotalAFazer, 10000);
+  // saldoTotal = 0 (obra nova) + (-2.000) (obra ativa, gastou sem receber
+  // ainda) = -2.000; cobertura = saldoTotal / orçamento restante (só da obra
+  // ativa) = -2.000 / 8.000.
+  assert.equal(caixa.saldoTotal, -2000);
+  assert.equal(caixa.coberturaCaixaPct, -25);
+});
+
+test('lucroPrevisto == valor esperado − orçamento, para obra CLIENTE e PROPRIA', () => {
+  const obraCliente = {
+    id: 'gc',
+    name: 'Cliente',
+    isPersonal: false,
+    plannedSpending: 90000,
+    tipoObra: 'CLIENTE',
+    valorContrato: 100000,
+  };
+  const obraPropria = {
+    id: 'gp',
+    name: 'Própria pra vender',
+    isPersonal: false,
+    plannedSpending: 95000,
+    tipoObra: 'PROPRIA',
+    valorVendaEsperada: 120000,
+  };
+
+  const metricsCliente = DashboardService.computeGroupMetrics(obraCliente, []);
+  const metricsPropria = DashboardService.computeGroupMetrics(obraPropria, []);
+
+  assert.equal(metricsCliente.lucroPrevisto, 10000);
+  assert.equal(metricsPropria.lucroPrevisto, 25000);
+});
+
+test('lucroProjetado == lucroPrevisto no dia 1 (sem nenhuma saída pendente itemizada ainda)', () => {
+  // A fórmula ingênua (valorEsperado − saidasPendentes) daria 100.000 de
+  // "lucro projetado" aqui — um exagero tão errado quanto o alarme de caixa
+  // que estamos corrigindo. O piso no orçamento restante evita isso.
+  const group = {
+    id: 'gdia1',
+    name: 'Obra no dia 1',
+    isPersonal: false,
+    plannedSpending: 90000,
+    tipoObra: 'CLIENTE',
+    valorContrato: 100000,
+  };
+
+  const metrics = DashboardService.computeGroupMetrics(group, []);
+  assert.equal(metrics.custoProjetado, 90000);
+  assert.equal(metrics.lucroProjetado, 10000);
+  assert.equal(metrics.lucroProjetado, metrics.lucroPrevisto);
+});
+
+test('lucroProjetado diverge do previsto só quando o comprometido ultrapassa o orçamento restante', () => {
+  const group = {
+    id: 'gestouro',
+    name: 'Obra com pendência acima do orçamento',
+    isPersonal: false,
+    plannedSpending: 90000,
+    tipoObra: 'CLIENTE',
+    valorContrato: 100000,
+  };
+  // Já gastou 40.000 (restam 50.000 de orçamento), mas já tem 60.000 em
+  // saídas pendentes lançadas — 10.000 acima do que resta.
+  const expenses = [
+    { groupId: 'gestouro', tipo: 'SAIDA', amount: 40000, dataRealizada: '2026-01-01' },
+    { groupId: 'gestouro', tipo: 'SAIDA', amount: 60000, dataRealizada: null, dataPrevista: '2026-03-01' },
+  ];
+
+  const metrics = DashboardService.computeGroupMetrics(group, expenses);
+  assert.equal(metrics.lucroPrevisto, 10000); // não muda, é fixo
+  assert.equal(metrics.custoProjetado, 100000); // 40.000 + max(50.000, 60.000)
+  assert.equal(metrics.lucroProjetado, 0); // 100.000 − 100.000
+  assert.notEqual(metrics.lucroProjetado, metrics.lucroPrevisto);
+});
+
+test('obra PROPRIA sem valorVendaEsperada não tem lucro previsto nem projetado', () => {
+  const group = {
+    id: 'gpsemvenda',
+    name: 'Própria sem venda esperada',
+    isPersonal: false,
+    plannedSpending: 50000,
+    tipoObra: 'PROPRIA',
+  };
+
+  const metrics = DashboardService.computeGroupMetrics(group, []);
+  assert.equal(metrics.lucroPrevisto, null);
+  assert.equal(metrics.lucroProjetado, null);
+});
+
+test('computeResultadoProjetado soma CLIENTE e PROPRIA em andamento, exclui PLANEJADO e CONCLUIDO', () => {
+  const groups = [
+    {
+      id: 'em-cliente',
+      name: 'Cliente em andamento',
+      isPersonal: false,
+      plannedSpending: 90000,
+      tipoObra: 'CLIENTE',
+      valorContrato: 100000,
+    },
+    {
+      id: 'em-propria',
+      name: 'Própria em andamento',
+      isPersonal: false,
+      plannedSpending: 95000,
+      tipoObra: 'PROPRIA',
+      valorVendaEsperada: 120000,
+    },
+    {
+      id: 'planejado',
+      name: 'Ainda não começou',
+      isPersonal: false,
+      plannedSpending: 50000,
+      tipoObra: 'CLIENTE',
+      valorContrato: 60000,
+      situacao: 'PLANEJADO',
+    },
+    {
+      id: 'concluida',
+      name: 'Já concluída',
+      isPersonal: false,
+      plannedSpending: 30000,
+      tipoObra: 'CLIENTE',
+      valorContrato: 40000,
+      situacao: 'CONCLUIDO',
+      valorFechamento: 40000,
+    },
+  ];
+  const expenses = [
+    { groupId: 'em-cliente', tipo: 'SAIDA', amount: 40000, dataRealizada: '2026-01-01' },
+    { groupId: 'em-propria', tipo: 'SAIDA', amount: 20000, dataRealizada: '2026-01-01' },
+  ];
+
+  const projetos = DashboardService.computeProjectPerformance(groups, expenses);
+  const resultadoProjetado = DashboardService.computeResultadoProjetado(projetos);
+
+  // Só as duas EM_ANDAMENTO entram. custoProjetado de cada uma = custoReal +
+  // max(orcamentoRestante, saidasPendentes) = custoReal + orcamentoRestante
+  // (sem pendência lançada) = gastoPlanejado em ambas (90.000 e 95.000).
+  assert.equal(resultadoProjetado.obrasEmAndamento, 2);
+  assert.equal(resultadoProjetado.valorEsperadoTotal, 220000); // 100.000 + 120.000
+  assert.equal(resultadoProjetado.custoProjetadoTotal, 185000); // 90.000 + 95.000
+  assert.equal(resultadoProjetado.lucroProjetadoTotal, 35000); // 220.000 − 185.000
+});
+
+// REF fixo em 23/07/2026 pros testes de período — mesmo "hoje" usado na
+// verificação manual do handoff (mês/trimestre/ano dão os mesmos ranges
+// citados na tela).
+const PERIOD_REF = new Date(Date.UTC(2026, 6, 23));
+
+test('resolvePeriodRange "mes" == 1º dia do mês corrente até hoje', () => {
+  const range = DashboardService.resolvePeriodRange('mes', PERIOD_REF);
+  assert.deepEqual(range, { from: '2026-07-01', to: '2026-07-23', label: '01 jul → 23 jul 2026' });
+});
+
+test('resolvePeriodRange "tri" == hoje menos 3 meses civis até hoje', () => {
+  const range = DashboardService.resolvePeriodRange('tri', PERIOD_REF);
+  assert.deepEqual(range, { from: '2026-04-23', to: '2026-07-23', label: '23 abr → 23 jul 2026' });
+});
+
+test('resolvePeriodRange "ano" == 1º de janeiro do ano corrente até hoje', () => {
+  const range = DashboardService.resolvePeriodRange('ano', PERIOD_REF);
+  assert.deepEqual(range, { from: '2026-01-01', to: '2026-07-23', label: '01 jan → 23 jul 2026' });
+});
+
+test('resolvePreviousPeriodRange "mes" == mês civil anterior inteiro', () => {
+  const range = DashboardService.resolvePreviousPeriodRange('mes', PERIOD_REF);
+  assert.deepEqual(range, { from: '2026-06-01', to: '2026-06-30', label: '01 jun → 30 jun 2026' });
+});
+
+test('resolvePreviousPeriodRange "tri" == os 3 meses civis imediatamente antes do trimestre atual', () => {
+  const range = DashboardService.resolvePreviousPeriodRange('tri', PERIOD_REF);
+  assert.deepEqual(range, { from: '2026-01-23', to: '2026-04-22', label: '23 jan → 22 abr 2026' });
+});
+
+test('resolvePreviousPeriodRange "ano" == ano civil anterior inteiro', () => {
+  const range = DashboardService.resolvePreviousPeriodRange('ano', PERIOD_REF);
+  assert.deepEqual(range, { from: '2025-01-01', to: '2025-12-31', label: '01 jan → 31 dez 2025' });
+});
+
+test('computeTrend devolve 12 pontos, em ordem cronológica, terminando no mês de referência', () => {
+  const groups = [{ id: 'gt', name: 'Obra', isPersonal: false, plannedSpending: 100000 }];
+  const points = DashboardService.computeTrend(groups, [], 12, PERIOD_REF);
+
+  assert.equal(points.length, 12);
+  assert.deepEqual(
+    points.map((p) => p.mes),
+    ['2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'],
+  );
+});
+
+test('computeTrend acumula lucro reconhecido e caixa livre até o fim de cada mês, ignorando o que vem depois', () => {
+  const groups = [
+    { id: 'gt', name: 'Obra', isPersonal: false, plannedSpending: 100000, tipoObra: 'CLIENTE', valorContrato: 150000 },
+  ];
+  const expenses = [
+    { groupId: 'gt', tipo: 'SAIDA', amount: 20000, dataRealizada: '2026-02-10' },
+    { groupId: 'gt', tipo: 'SAIDA', amount: 30000, dataRealizada: '2026-05-10' },
+    { groupId: 'gt', tipo: 'ENTRADA', amount: 10000, dataRealizada: '2026-06-01' },
+  ];
+
+  const points = DashboardService.computeTrend(groups, expenses, 12, PERIOD_REF);
+  const byMonth = Object.fromEntries(points.map((p) => [p.mes, p]));
+
+  // Antes de qualquer lançamento: tudo zerado.
+  assert.equal(byMonth['2026-01'].lucroReconhecidoAcumulado, 0);
+  assert.equal(byMonth['2026-01'].caixaLivre, 0);
+
+  // Fevereiro: só a SAIDA de 20.000 realizada — avanço 20%, receita 30.000,
+  // lucro reconhecido 10.000. Caixa livre = saldoAtual (-20.000, sem aporte).
+  assert.equal(byMonth['2026-02'].lucroReconhecidoAcumulado, 10000);
+  assert.equal(byMonth['2026-02'].caixaLivre, -20000);
+
+  // Maio: acumula a segunda SAIDA (total 50.000) — avanço 50%, receita
+  // 75.000, lucro reconhecido 25.000.
+  assert.equal(byMonth['2026-05'].lucroReconhecidoAcumulado, 25000);
+  assert.equal(byMonth['2026-05'].caixaLivre, -50000);
+
+  // Julho (mês de referência, parcial): a ENTRADA de junho já entrou, nada
+  // novo em julho — lucro reconhecido some igual a maio, caixa livre reflete
+  // o aporte de junho.
+  assert.equal(byMonth['2026-07'].lucroReconhecidoAcumulado, 25000);
+  assert.equal(byMonth['2026-07'].caixaLivre, -40000);
 });

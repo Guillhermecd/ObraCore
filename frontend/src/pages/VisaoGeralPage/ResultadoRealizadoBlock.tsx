@@ -1,7 +1,6 @@
+import { CheckCircleOutlined } from "@ant-design/icons";
 import { theme } from "antd";
-import { Kpi } from "../../components/Kpi";
-import { kpiGridStyle } from "../../components/layout";
-import { SectionBlock } from "../../components/SectionBlock";
+import { DetailCard } from "../../components/DetailCard";
 import type { DashboardResultadoRealizado } from "../../api/modules/types";
 import { plural } from "../../utils/format";
 import { usePrivacyFormat } from "../../privacyContext";
@@ -16,7 +15,8 @@ type ResultadoRealizadoBlockProps = {
  * Lucro REALIZADO — só obras CONCLUIDO com valor de fechamento informado,
  * dos DOIS tipos (diferente de `ResultBlock`, que é só obra de cliente em
  * andamento, por percentual de avanço). É o resultado definitivo: a obra
- * terminou, o custo não muda mais.
+ * terminou, o custo não muda mais. Snapshot — não responde ao seletor de
+ * período do Consolidado.
  */
 export function ResultadoRealizadoBlock({
   resultadoRealizado,
@@ -31,46 +31,41 @@ export function ResultadoRealizadoBlock({
   const lucroRealizadoTotal = resultadoRealizado?.lucroRealizadoTotal ?? 0;
   const margemPct = resultadoRealizado?.margemPct ?? null;
 
-  if (!loading && obrasConcluidas === 0) {
-    return null;
-  }
-
   return (
-    <SectionBlock
-      title="Lucro realizado — obras concluídas"
-      scope="acumulado"
-      footnote="Valor de fechamento menos custo gasto, das obras já concluídas. Definitivo — diferente do lucro reconhecido por avanço, que é só das obras de cliente em andamento."
-    >
-      <div style={kpiGridStyle}>
-        <Kpi
-          loading={loading}
-          label="Obras concluídas"
-          value={plural(obrasConcluidas, "obra", "obras")}
-          hint="Número de obras marcadas como concluídas com valor de fechamento informado."
-        />
-        <Kpi
-          loading={loading}
-          label="Valor de fechamento"
-          value={formatCurrency(valorFechamentoTotal)}
-          hint="Soma do valor pelo qual cada obra concluída foi entregue ou vendida."
-        />
-        <Kpi
-          loading={loading}
-          label="Custo realizado"
-          value={formatCurrency(custoRealizadoTotal)}
-          hint="Soma das saídas já realizadas nas obras concluídas."
-        />
-        <Kpi
-          loading={loading}
-          label="Lucro realizado"
-          value={formatCurrency(lucroRealizadoTotal)}
-          color={saldoColor(lucroRealizadoTotal, token)}
-          hint="Valor de fechamento menos custo realizado. Margem = lucro realizado ÷ valor de fechamento."
-          detail={
-            margemPct === null ? null : `Margem de ${formatPercent(margemPct)}`
-          }
-        />
-      </div>
-    </SectionBlock>
+    <DetailCard
+      icon={<CheckCircleOutlined />}
+      title="Lucro realizado"
+      sublabel="Obras concluídas"
+      loading={loading}
+      emptyMessage={
+        !loading && obrasConcluidas === 0
+          ? "Nenhuma obra concluída ainda."
+          : undefined
+      }
+      stats={[
+        {
+          label: "Obras",
+          value: plural(obrasConcluidas, "obra", "obras"),
+          hint: "Obras com status Concluído e valor de fechamento informado, de cliente e próprias.",
+        },
+        {
+          label: "Valor de fechamento",
+          value: formatCurrency(valorFechamentoTotal),
+          hint: "Soma do valor pelo qual cada obra concluída foi entregue ou vendida.",
+        },
+        {
+          label: "Custo realizado",
+          value: formatCurrency(custoRealizadoTotal),
+          hint: "Soma de todo o custo gasto nas obras concluídas, do início ao fim.",
+        },
+        {
+          label: "Lucro",
+          value: formatCurrency(lucroRealizadoTotal),
+          color: saldoColor(lucroRealizadoTotal, token),
+          detail: margemPct === null ? null : `margem ${formatPercent(margemPct)}`,
+          hint: "Valor de fechamento menos custo realizado total das obras concluídas.",
+        },
+      ]}
+    />
   );
 }

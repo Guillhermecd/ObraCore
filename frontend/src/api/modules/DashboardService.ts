@@ -5,6 +5,7 @@ import type {
   DashboardObraResponse,
   DashboardSummaryResponse,
   MovimentacoesResponse,
+  PeriodoConsolidado,
   ProjectPerformance,
 } from "./types";
 
@@ -25,8 +26,9 @@ export const DashboardService = {
       `/dashboard/movimentacoes?${params.toString()}`,
     );
   },
-  summary() {
-    return api<DashboardSummaryResponse>("/dashboard/summary");
+  summary(period?: PeriodoConsolidado) {
+    const query = period ? `?period=${period}` : "";
+    return api<DashboardSummaryResponse>(`/dashboard/summary${query}`);
   },
   cashflowForecast() {
     return api<CashflowForecastResponse>("/dashboard/cashflow-forecast");

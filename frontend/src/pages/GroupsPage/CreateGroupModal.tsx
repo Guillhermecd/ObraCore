@@ -2,7 +2,7 @@ import { Button, Form, Input, InputNumber, Modal, Select, message } from "antd";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { GroupService } from "../../api/modules/GroupService";
 import type { Group, TipoObra } from "../../api/modules/types";
-import { TIPO_OBRA_LABEL } from "../../utils/obra";
+import { TIPO_OBRA_LABEL, valorEsperadoLabel } from "../../utils/obra";
 
 type CreateGroupForm = {
   name: string;
@@ -10,6 +10,7 @@ type CreateGroupForm = {
   plannedSpending: number;
   tipoObra: TipoObra;
   valorContrato: number | null;
+  valorVendaEsperada: number | null;
 };
 
 type Props = {
@@ -32,6 +33,7 @@ export function CreateGroupModal({ open, onClose, onCreated }: Props) {
       plannedSpending: 0,
       tipoObra: "PROPRIA",
       valorContrato: null,
+      valorVendaEsperada: null,
     },
   });
 
@@ -51,6 +53,7 @@ export function CreateGroupModal({ open, onClose, onCreated }: Props) {
         plannedSpending: values.plannedSpending,
         tipoObra: values.tipoObra,
         valorContrato: values.tipoObra === "CLIENTE" ? values.valorContrato : null,
+        valorVendaEsperada: values.tipoObra === "PROPRIA" ? values.valorVendaEsperada : null,
       });
       messageApi.success("Grupo criado.");
       onCreated(response.group);
@@ -105,7 +108,7 @@ export function CreateGroupModal({ open, onClose, onCreated }: Props) {
           render={({ field }) => (
             <Form.Item
               label="Tipo de obra"
-              help="Obra de cliente tem contrato, receita e lucro reconhecidos. Obra própria é financiada por aporte de capital."
+              help="Obra de cliente tem contrato, receita e lucro reconhecidos. Obra própria é financiada por aporte de capital, mas também pode ter um valor de venda esperado, pra estimar lucro."
             >
               <Select
                 {...field}
@@ -117,12 +120,36 @@ export function CreateGroupModal({ open, onClose, onCreated }: Props) {
             </Form.Item>
           )}
         />
-        {isCliente && (
+        {isCliente ? (
           <Controller
             name="valorContrato"
             control={control}
             render={({ field }) => (
-              <Form.Item label="Valor do contrato">
+              <Form.Item label={valorEsperadoLabel("CLIENTE")}>
+                <InputNumber
+                  {...field}
+                  value={field.value ?? undefined}
+                  onChange={(value) => field.onChange(value ?? null)}
+                  style={{ width: "100%" }}
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  decimalSeparator=","
+                  prefix="R$"
+                  placeholder="Pode ser informado depois"
+                />
+              </Form.Item>
+            )}
+          />
+        ) : (
+          <Controller
+            name="valorVendaEsperada"
+            control={control}
+            render={({ field }) => (
+              <Form.Item
+                label={valorEsperadoLabel("PROPRIA")}
+                help="Opcional. Informado, já dá uma previsão de lucro (venda esperada − orçamento) desde já."
+              >
                 <InputNumber
                   {...field}
                   value={field.value ?? undefined}

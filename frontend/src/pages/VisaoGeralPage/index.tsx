@@ -1,15 +1,4 @@
-import {
-  Card,
-  DatePicker,
-  Empty,
-  Table,
-  Tag,
-  message,
-  theme,
-  type TableColumnsType,
-  type TablePaginationConfig,
-} from "antd";
-import dayjs, { type Dayjs } from "dayjs";
+import { Grid, Segmented, message, theme } from "antd";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -18,37 +7,24 @@ import type {
   DashboardAlert,
   CashflowForecastResponse,
   DashboardSummaryResponse,
-  ExpenseTipo,
-  Movimentacao,
-  MovimentacaoStatus,
-  ProjectPerformance,
+  PeriodoConsolidado,
 } from "../../api/modules/types";
-import { SectionBlock } from "../../components/SectionBlock";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
-import { usePrivacyFormat } from "../../privacyContext";
 import { AlertsPanel } from "./AlertsPanel";
 import { CashFlowForecast } from "./CashFlowForecast";
 import { ExecutiveSummary } from "./ExecutiveSummary";
-import { ProjectPerformanceCards } from "./ProjectPerformanceCards";
 import { ResultBlock } from "./ResultBlock";
+import { ResultHeroCard } from "./ResultHeroCard";
+import { ResultadoProjetadoBlock } from "./ResultadoProjetadoBlock";
 import { ResultadoRealizadoBlock } from "./ResultadoRealizadoBlock";
+import { TrendChart } from "./TrendChart";
 
-const { RangePicker } = DatePicker;
-
-const PAGE_SIZE = 20;
-
-const STATUS_LABEL: Record<MovimentacaoStatus, string> = {
-  REALIZADO: "Realizado",
-  PENDENTE: "Pendente",
-  ATRASADO: "Atrasado",
-};
-
-const STATUS_COLOR: Record<MovimentacaoStatus, string> = {
-  REALIZADO: "success",
-  PENDENTE: "processing",
-  ATRASADO: "error",
-};
+const PERIODO_OPTIONS: { label: string; value: PeriodoConsolidado }[] = [
+  { label: "Mês", value: "mes" },
+  { label: "Trimestre", value: "tri" },
+  { label: "Ano", value: "ano" },
+];
 
 const pageHeaderRowStyle: CSSProperties = {
   display: "flex",
@@ -59,16 +35,45 @@ const pageHeaderRowStyle: CSSProperties = {
   marginBottom: 24,
 };
 
+const heroGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1.55fr 1fr",
+  gap: 22,
+  marginBottom: 24,
+  alignItems: "stretch",
+};
+
+const heroGridMobileStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: 22,
+  marginBottom: 24,
+};
+
+const detalhamentoGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 22,
+  marginBottom: 24,
+};
+
 export function VisaoGeralPage() {
   const { token } = theme.useToken();
-  const { formatCurrency } = usePrivacyFormat();
-  usePrivateMobileHeader("Consolidado");
+  const screens = Grid.useBreakpoint();
+  const isDesktop = Boolean(screens.md);
+  usePrivateMobileHeader("Dashboard");
   const navigate = useNavigate();
   const { setActiveGroupId } = useActiveGroup();
   const [messageApi, contextHolder] = message.useMessage();
 
+  const [periodo, setPeriodo] = useState<PeriodoConsolidado>("ano");
+
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
+  // Loading derivado do período já carregado — trocar de período já entra em
+  // carregamento no mesmo render, sem um `setState` síncrono dentro do
+  // efeito (mesmo padrão do `movLoading` da tela Status).
+  const [loadedPeriodo, setLoadedPeriodo] = useState<PeriodoConsolidado | null>(null);
+  const summaryLoading = loadedPeriodo !== periodo;
 
   const [forecast, setForecast] = useState<CashflowForecastResponse | null>(
     null,
@@ -78,25 +83,8 @@ export function VisaoGeralPage() {
   const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
 
-  const [projects, setProjects] = useState<ProjectPerformance[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(true);
-
-  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
-
-  // `movLoading` é derivado da chave da requisição em curso — trocar de
-  // página ou de período já entra em carregamento no mesmo render, sem um
-  // setState a mais dentro do efeito.
-  const from = range?.[0]?.format("YYYY-MM-DD");
-  const to = range?.[1]?.format("YYYY-MM-DD");
-  const movKey = `${page}|${from ?? ""}|${to ?? ""}`;
-  const [loadedMovKey, setLoadedMovKey] = useState<string | null>(null);
-  const movLoading = loadedMovKey !== movKey;
-
   useEffect(() => {
-    DashboardService.summary()
+    DashboardService.summary(periodo)
       .then((response) => setSummary(response))
       .catch((error: unknown) => {
         messageApi.error(
@@ -105,8 +93,8 @@ export function VisaoGeralPage() {
             : "Erro ao carregar o consolidado de caixa.",
         );
       })
-      .finally(() => setSummaryLoading(false));
-  }, [messageApi]);
+      .finally(() => setLoadedPeriodo(periodo));
+  }, [messageApi, periodo]);
 
   useEffect(() => {
     DashboardService.cashflowForecast()
@@ -132,90 +120,10 @@ export function VisaoGeralPage() {
       .finally(() => setAlertsLoading(false));
   }, [messageApi]);
 
-  useEffect(() => {
-    DashboardService.projectsPerformance()
-      .then((response) => setProjects(response))
-      .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar desempenho das obras.",
-        );
-      })
-      .finally(() => setProjectsLoading(false));
-  }, [messageApi]);
-
-  // Só o histórico responde ao filtro de período: todo o resto da tela é
-  // acumulado, e recortá-lo por janela não faria sentido.
-  useEffect(() => {
-    DashboardService.movimentacoes(page, PAGE_SIZE, from, to)
-      .then((response) => {
-        setMovimentacoes(response.items);
-        setTotal(response.total);
-      })
-      .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar movimentações.",
-        );
-      })
-      .finally(() => setLoadedMovKey(movKey));
-  }, [messageApi, page, from, to, movKey]);
-
   function openProjectDashboard(groupId: string) {
     setActiveGroupId(groupId);
     navigate("/obra");
   }
-
-  function handleTableChange(pagination: TablePaginationConfig) {
-    setPage(pagination.current ?? 1);
-  }
-
-  const columns: TableColumnsType<Movimentacao> = [
-    {
-      title: "Data",
-      dataIndex: "data",
-      key: "data",
-      render: (value: string) => dayjs(value).format("DD/MM/YYYY"),
-    },
-    {
-      title: "Obra",
-      dataIndex: "projeto",
-      key: "projeto",
-      render: (value: string | null) => value ?? "—",
-    },
-    {
-      title: "Tipo",
-      dataIndex: "tipo",
-      key: "tipo",
-      render: (value: ExpenseTipo) => (
-        <Tag color={value === "ENTRADA" ? "success" : "default"}>
-          {value === "ENTRADA" ? "Entrada" : "Saída"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Categoria",
-      dataIndex: "categoria",
-      key: "categoria",
-      render: (value: string | null) => value ?? "—",
-    },
-    {
-      title: "Valor",
-      dataIndex: "valor",
-      key: "valor",
-      render: (value: number) => formatCurrency(value),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      render: (value: MovimentacaoStatus) => (
-        <Tag color={STATUS_COLOR[value]}>{STATUS_LABEL[value]}</Tag>
-      ),
-    },
-  ];
 
   return (
     <section>
@@ -225,96 +133,78 @@ export function VisaoGeralPage() {
           <h1
             style={{ margin: 0, color: token.colorTextHeading, fontSize: 26 }}
           >
-            Consolidado — Financeiro
+            Dashboard — Financeiro
           </h1>
           <p
             style={{
               margin: "4px 0 0",
               color: token.colorTextSecondary,
               fontSize: 13,
+              maxWidth: 560,
             }}
           >
-            Caixa e resultado de todas as obras. O filtro de período governa
-            apenas o histórico.
+            Caixa e resultado de todas as obras. O período{" "}
+            <strong style={{ color: token.colorText }}>
+              {PERIODO_OPTIONS.find((option) => option.value === periodo)?.label.toLowerCase()}
+            </strong>{" "}
+            governa o Resultado e a tendência.
           </p>
         </div>
-        <RangePicker
-          value={range}
-          onChange={(values) => {
-            setPage(1);
-            setRange(
-              values && values[0] && values[1] ? [values[0], values[1]] : null,
-            );
-          }}
-          format="DD/MM/YYYY"
-          placeholder={["Início", "Fim"]}
-          allowClear
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          <Segmented
+            value={periodo}
+            onChange={(value) => setPeriodo(value as PeriodoConsolidado)}
+            options={PERIODO_OPTIONS}
+          />
+          {summary && (
+            <span style={{ fontSize: 12, color: token.colorTextSecondary }}>
+              {summary.periodoRange.label}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={isDesktop ? heroGridStyle : heroGridMobileStyle}>
+        <ResultHeroCard
+          resultado={summary?.resultado ?? null}
+          resultadoProjetado={summary?.resultadoProjetado ?? null}
+          resultadoRealizado={summary?.resultadoRealizado ?? null}
+          periodo={periodo}
+          resultadoDeltaPct={summary?.resultadoDeltaPct ?? null}
+          loading={summaryLoading}
+        />
+        <AlertsPanel
+          alerts={alerts}
+          loading={alertsLoading}
+          onViewDetails={openProjectDashboard}
         />
       </div>
 
-      <AlertsPanel
-        alerts={alerts}
-        loading={alertsLoading}
-        onViewDetails={openProjectDashboard}
-      />
+      <TrendChart trend={summary?.trend ?? []} loading={summaryLoading} />
 
       <ExecutiveSummary summary={summary} loading={summaryLoading} />
 
-      <ResultBlock
-        resultado={summary?.resultado ?? null}
-        loading={summaryLoading}
-      />
-
-      <ResultadoRealizadoBlock
-        resultadoRealizado={summary?.resultadoRealizado ?? null}
-        loading={summaryLoading}
-      />
-
-      <ProjectPerformanceCards
-        projects={projects}
-        loading={projectsLoading}
-        onOpenProject={openProjectDashboard}
-      />
+      <div style={detalhamentoGridStyle}>
+        <ResultadoProjetadoBlock
+          resultadoProjetado={summary?.resultadoProjetado ?? null}
+          loading={summaryLoading}
+        />
+        <ResultBlock
+          resultado={summary?.resultado ?? null}
+          periodo={periodo}
+          loading={summaryLoading}
+        />
+        <ResultadoRealizadoBlock
+          resultadoRealizado={summary?.resultadoRealizado ?? null}
+          loading={summaryLoading}
+        />
+      </div>
 
       <CashFlowForecast
         forecast={forecast}
         loading={forecastLoading}
         saldoAtual={summary?.saldoTotal ?? 0}
       />
-
-      <SectionBlock
-        title="Histórico geral"
-        scope="periodo"
-        extra={
-          range === null ? (
-            <span style={{ fontSize: 12, color: token.colorTextSecondary }}>
-              Todo o período
-            </span>
-          ) : null
-        }
-      >
-        <Card>
-          <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={movimentacoes}
-            loading={movLoading}
-            onChange={handleTableChange}
-            scroll={{ x: "max-content" }}
-            pagination={{
-              current: page,
-              pageSize: PAGE_SIZE,
-              total,
-              showSizeChanger: false,
-            }}
-            locale={{
-              emptyText: (
-                <Empty description="Nenhuma movimentação no período selecionado." />
-              ),
-            }}
-          />
-        </Card>
-      </SectionBlock>
     </section>
   );
 }

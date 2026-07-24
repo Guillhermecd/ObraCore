@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  BarChartOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
   FormOutlined,
@@ -42,17 +43,17 @@ const layoutStyle: CSSProperties = {
 };
 
 const logoStyle: CSSProperties = {
-  minHeight: 88,
+  minHeight: 144,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "24px 28px",
+  padding: "32px 20px",
 };
 
 const collapsedLogoStyle: CSSProperties = {
   ...logoStyle,
-  minHeight: 72,
-  padding: "20px 12px",
+  minHeight: 100,
+  padding: "24px 8px",
 };
 
 const drawerLogoStyle: CSSProperties = {
@@ -182,10 +183,19 @@ function PrivateLayoutContent() {
       {
         key: "/consolidado",
         icon: <AppstoreOutlined />,
-        label: "Consolidado",
+        label: "Dashboard",
         onClick: () => {
           setDrawerOpen(false);
           navigate("/consolidado");
+        },
+      },
+      {
+        key: "/status",
+        icon: <BarChartOutlined />,
+        label: "Status",
+        onClick: () => {
+          setDrawerOpen(false);
+          navigate("/status");
         },
       },
       {
@@ -280,8 +290,8 @@ function PrivateLayoutContent() {
               <BrandLogo
                 tone="light"
                 style={{
-                  maxWidth: collapsed ? 24 : 188,
-                  maxHeight: collapsed ? 30 : 48,
+                  maxWidth: collapsed ? 52 : 420,
+                  maxHeight: collapsed ? 60 : 120,
                   objectFit: "contain",
                 }}
               />

@@ -36,6 +36,16 @@ function isRealizada(expense) {
 const RITMO_MESES = 3;
 
 /**
+ * Obra sem nenhum lançamento realizado ainda (nem custo, nem aporte) — nada
+ * aconteceu de fato. Usado tanto pro status "sem_movimento" quanto para
+ * silenciar alertas/KPIs de caixa que, comparados contra o orçamento inteiro,
+ * disparariam sempre no instante em que a obra é criada.
+ */
+function isSemMovimento(metrics) {
+  return metrics.custoReal === 0 && metrics.totalAportado === 0;
+}
+
+/**
  * Chave `YYYY-MM` de um mês civil deslocado de `offset` meses a partir de
  * `reference`.
  */
@@ -99,6 +109,21 @@ function computeGastoMedioMensal(groupExpenses, reference) {
  * casos tudo é null — nunca 0, que seria lido como "lucro zero"):
  *   avanco, receitaReconhecida, lucroReconhecido, margemPct, margemPrevistaPct
  *
+ * Camada de previsão (CLIENTE com valorContrato OU PROPRIA com
+ * valorVendaEsperada — ao contrário da camada de contrato acima, essa NÃO é
+ * reconhecimento de receita formal, é só uma estimativa de planejamento):
+ *   lucroPrevisto  = valorEsperado − gastoPlanejado. Fixo — não muda com
+ *                    lançamento nenhum, é a referência do dia em que o
+ *                    negócio foi fechado.
+ *   custoProjetado = custoReal + max(orcamentoRestante, saidasPendentes).
+ *                    O piso em orcamentoRestante é essencial: sem ele, antes
+ *                    de qualquer saída ser lançada como pendente, o custo
+ *                    projetado seria 0 e o lucro projetado inventaria 100%
+ *                    de margem no dia da criação da obra.
+ *   lucroProjetado = valorEsperado − custoProjetado. Só diverge do previsto
+ *                    quando o comprometido (já gasto + já lançado como
+ *                    pendente) ultrapassa o orçamento restante.
+ *
  * `reference` (data-base do ritmo) é injetável para os testes; em produção é
  * sempre `startOfTodayUTC()`.
  */
@@ -154,6 +179,15 @@ function computeGroupMetrics(group, groupExpenses, reference = startOfTodayUTC()
   const tipoObra = group.tipoObra || 'PROPRIA';
   const valorContrato =
     tipoObra === 'CLIENTE' && group.valorContrato ? group.valorContrato : null;
+  const valorVendaEsperada =
+    tipoObra === 'PROPRIA' && group.valorVendaEsperada ? group.valorVendaEsperada : null;
+  const valorEsperado = valorContrato !== null ? valorContrato : valorVendaEsperada;
+
+  const lucroPrevisto =
+    valorEsperado !== null && gastoPlanejado > 0 ? round2(valorEsperado - gastoPlanejado) : null;
+
+  const custoProjetado = round2(custoReal + Math.max(orcamentoRestante, saidasPendentes));
+  const lucroProjetado = valorEsperado !== null ? round2(valorEsperado - custoProjetado) : null;
 
   const situacao = group.situacao || 'EM_ANDAMENTO';
   const valorFechamento = group.valorFechamento != null ? group.valorFechamento : null;
@@ -210,6 +244,11 @@ function computeGroupMetrics(group, groupExpenses, reference = startOfTodayUTC()
     lucroReconhecido,
     margemPct,
     margemPrevistaPct,
+
+    valorVendaEsperada,
+    lucroPrevisto,
+    custoProjetado,
+    lucroProjetado,
 
     situacao,
     valorFechamento,
@@ -320,6 +359,79 @@ function filterByPeriod(expenses, from, to) {
   });
 }
 
+function toDateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+function formatRangeLabel(fromKey, toKey) {
+  const from = new Date(`${fromKey}T00:00:00Z`);
+  const to = new Date(`${toKey}T00:00:00Z`);
+  const fromLabel = `${String(from.getUTCDate()).padStart(2, '0')} ${MESES_ABREV[from.getUTCMonth()]}`;
+  const toLabel = `${String(to.getUTCDate()).padStart(2, '0')} ${MESES_ABREV[to.getUTCMonth()]} ${to.getUTCFullYear()}`;
+  return `${fromLabel} → ${toLabel}`;
+}
+
+/**
+ * Janela do seletor Mês/Trimestre/Ano do Consolidado, sempre terminando em
+ * `reference` (hoje, em produção):
+ *   mes: 1º dia do mês corrente → hoje.
+ *   tri: hoje − 3 meses civis → hoje (janela rolante, mesmo comprimento do
+ *        ritmo de gasto — `RITMO_MESES`).
+ *   ano: 1º de janeiro do ano corrente → hoje.
+ */
+function resolvePeriodRange(period, reference = startOfTodayUTC()) {
+  let fromDate;
+  if (period === 'mes') {
+    fromDate = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1));
+  } else if (period === 'tri') {
+    fromDate = new Date(
+      Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth() - RITMO_MESES, reference.getUTCDate()),
+    );
+  } else {
+    fromDate = new Date(Date.UTC(reference.getUTCFullYear(), 0, 1));
+  }
+
+  const from = toDateKey(fromDate);
+  const to = toDateKey(reference);
+  return { from, to, label: formatRangeLabel(from, to) };
+}
+
+/**
+ * Janela de mesma duração, imediatamente anterior à de `resolvePeriodRange` —
+ * usada só pro delta comparativo do herói ("+18% vs. ano anterior"):
+ *   mes: mês civil anterior inteiro.
+ *   tri: os 3 meses civis imediatamente antes da janela atual.
+ *   ano: ano civil anterior inteiro.
+ */
+function resolvePreviousPeriodRange(period, reference = startOfTodayUTC()) {
+  if (period === 'mes') {
+    const prevMonthEnd = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 0));
+    const prevMonthStart = new Date(Date.UTC(prevMonthEnd.getUTCFullYear(), prevMonthEnd.getUTCMonth(), 1));
+    const from = toDateKey(prevMonthStart);
+    const to = toDateKey(prevMonthEnd);
+    return { from, to, label: formatRangeLabel(from, to) };
+  }
+
+  if (period === 'tri') {
+    const { from: currentFromKey } = resolvePeriodRange('tri', reference);
+    const currentFrom = new Date(`${currentFromKey}T00:00:00Z`);
+    const prevTo = addDaysUTC(currentFrom, -1);
+    const prevFrom = new Date(
+      Date.UTC(currentFrom.getUTCFullYear(), currentFrom.getUTCMonth() - RITMO_MESES, currentFrom.getUTCDate()),
+    );
+    const from = toDateKey(prevFrom);
+    const to = toDateKey(prevTo);
+    return { from, to, label: formatRangeLabel(from, to) };
+  }
+
+  const prevYear = reference.getUTCFullYear() - 1;
+  const from = toDateKey(new Date(Date.UTC(prevYear, 0, 1)));
+  const to = toDateKey(new Date(Date.UTC(prevYear, 11, 31)));
+  return { from, to, label: formatRangeLabel(from, to) };
+}
+
 module.exports = {
   /**
    * Status é sempre derivado das datas do lançamento, nunca armazenado.
@@ -366,7 +478,43 @@ module.exports = {
   buildMonthlyEvolution,
   buildTopSuppliers,
   filterByPeriod,
+  resolvePeriodRange,
+  resolvePreviousPeriodRange,
   round2,
+
+  /**
+   * Série mensal (12 meses por padrão, mês corrente cortado em `reference`)
+   * de lucro reconhecido acumulado e caixa livre — alimenta o gráfico de
+   * tendência do Consolidado. Para cada mês, roda o mesmo pipeline de sempre
+   * (`computeProjectPerformance` → `computeResultadoConsolidado`/
+   * `computeCaixaConsolidado`) só que sobre as expenses realizadas até o fim
+   * daquele mês (`filterByPeriod` sem `from` — cai pra "desde sempre").
+   * Independe do seletor Mês/Trimestre/Ano da tela: é sempre os últimos
+   * `monthsBack` meses.
+   */
+  computeTrend(groups, expenses, monthsBack = 12, reference = startOfTodayUTC()) {
+    const obras = groups.filter((group) => !group.isPersonal);
+    const points = [];
+
+    for (let offset = monthsBack - 1; offset >= 0; offset -= 1) {
+      const monthEndCandidate = new Date(
+        Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth() - offset + 1, 0),
+      );
+      const cutoff = monthEndCandidate.getTime() > reference.getTime() ? reference : monthEndCandidate;
+      const expensesUntil = filterByPeriod(expenses, undefined, toDateKey(cutoff));
+      const projetos = this.computeProjectPerformance(obras, expensesUntil);
+      const resultado = this.computeResultadoConsolidado(projetos);
+      const caixa = this.computeCaixaConsolidado(projetos);
+
+      points.push({
+        mes: monthKey(reference, -offset),
+        lucroReconhecidoAcumulado: resultado.lucroReconhecido,
+        caixaLivre: caixa.caixaLivre,
+      });
+    }
+
+    return points;
+  },
 
   /**
    * Bloco de caixa do Consolidado. Substitui o antigo "score de saúde
@@ -380,9 +528,17 @@ module.exports = {
    *                       inflaria o caixa livre — justamente o número que a
    *                       tela apresenta como o mais honesto.
    *   caixaLivre        = saldoTotal − caixaComprometido
-   *   aporteTotalAFazer = Σ aporteAFazer
-   *   coberturaCaixaPct = saldoTotal / Σ orcamentoRestante — null quando não
-   *                       resta orçamento em obra nenhuma
+   *   aporteTotalAFazer = Σ aporteAFazer, só de obra com movimento
+   *   coberturaCaixaPct = saldoTotal / Σ orcamentoRestante (mesmo recorte) —
+   *                       null quando não resta orçamento em obra nenhuma
+   *
+   * Obra sem nenhum lançamento ainda (nem custo, nem aporte) não entra em
+   * `aporteTotalAFazer`/`orcamentoRestanteTotal`: o orçamento dela é só
+   * planejamento, ainda não uma necessidade de caixa real — contá-lo faria o
+   * consolidado nascer "devendo" no instante em que a obra é criada, antes de
+   * qualquer dinheiro ter de fato entrado ou saído. `saldoTotal`/
+   * `caixaComprometido` continuam somando todas — são 0 pra essas obras de
+   * qualquer forma.
    */
   computeCaixaConsolidado(projetos) {
     let saldoTotal = 0;
@@ -393,6 +549,11 @@ module.exports = {
     projetos.forEach((projeto) => {
       saldoTotal += projeto.saldoAtual;
       caixaComprometido += Math.max(0, Math.min(projeto.orcamentoRestante, projeto.saldoAtual));
+
+      if (projeto.custoReal === 0 && projeto.totalAportado === 0) {
+        return;
+      }
+
       aporteTotalAFazer += projeto.aporteAFazer;
       orcamentoRestanteTotal += projeto.orcamentoRestante;
     });
@@ -412,15 +573,24 @@ module.exports = {
 
   /**
    * Bloco de resultado do Consolidado, alimentado EXCLUSIVAMENTE por obras de
-   * cliente com contrato informado — obra própria não gera receita, o dinheiro
-   * que entra nela é aporte do próprio dono, e somá-la aqui inventaria lucro.
+   * cliente EM_ANDAMENTO com contrato informado — obra própria não gera
+   * receita (o dinheiro que entra nela é aporte do próprio dono, e somá-la
+   * aqui inventaria lucro) e obra CONCLUIDO não entra mais aqui: o resultado
+   * dela já é definitivo e mora só em `computeResultadoRealizado`. Sem esse
+   * corte, uma obra concluída apareceria em dois lugares com dois números
+   * diferentes (reconhecido por avanço aqui, fechamento ali) — os dois blocos
+   * precisam ser mutuamente exclusivos: ativa entra só em "Resultado",
+   * concluída entra só em "Lucro realizado".
    *
    * `margemPrevistaPct` é a margem consolidada na conclusão: usa o contrato e
    * o orçamento inteiros, não a parcela já reconhecida.
    */
   computeResultadoConsolidado(projetos) {
     const obrasCliente = projetos.filter(
-      (projeto) => projeto.tipoObra === 'CLIENTE' && projeto.receitaReconhecida !== null,
+      (projeto) =>
+        projeto.tipoObra === 'CLIENTE' &&
+        projeto.situacao === 'EM_ANDAMENTO' &&
+        projeto.receitaReconhecida !== null,
     );
 
     let receitaReconhecida = 0;
@@ -491,6 +661,46 @@ module.exports = {
   },
 
   /**
+   * Bloco de resultado PROJETADO do Consolidado: obras EM_ANDAMENTO (exclui
+   * PLANEJADO — ainda nem começou — e CONCLUIDO — já tem seu próprio bloco de
+   * realizado) com valor esperado (contrato de cliente OU venda esperada de
+   * obra própria). Diferente de `computeResultadoConsolidado` (percentual de
+   * avanço, só CLIENTE): este soma os dois tipos de obra e responde "se tudo
+   * sair como planejado, quanto sobra", considerando custo já realizado E já
+   * previsto (ver `custoProjetado` em `computeGroupMetrics`).
+   */
+  computeResultadoProjetado(projetos) {
+    const obrasEmAndamento = projetos.filter(
+      (projeto) => projeto.situacao === 'EM_ANDAMENTO' && projeto.lucroProjetado !== null,
+    );
+
+    let valorEsperadoTotal = 0;
+    let custoProjetadoTotal = 0;
+    let lucroProjetadoTotal = 0;
+
+    obrasEmAndamento.forEach((projeto) => {
+      const valorEsperado =
+        projeto.valorContrato !== null ? projeto.valorContrato : projeto.valorVendaEsperada;
+      valorEsperadoTotal += valorEsperado;
+      custoProjetadoTotal += projeto.custoProjetado;
+      lucroProjetadoTotal += projeto.lucroProjetado;
+    });
+
+    valorEsperadoTotal = round2(valorEsperadoTotal);
+    custoProjetadoTotal = round2(custoProjetadoTotal);
+    lucroProjetadoTotal = round2(lucroProjetadoTotal);
+
+    return {
+      obrasEmAndamento: obrasEmAndamento.length,
+      valorEsperadoTotal,
+      custoProjetadoTotal,
+      lucroProjetadoTotal,
+      margemPct:
+        valorEsperadoTotal > 0 ? round2((lucroProjetadoTotal / valorEsperadoTotal) * 100) : null,
+    };
+  },
+
+  /**
    * Alertas automáticos por projeto (grupo). Alerta é EXCEÇÃO: só o que pede
    * ação sai daqui. O antigo nível `success` ("no prazo e dentro do
    * orçamento") foi removido do backend — esse é o estado esperado, não uma
@@ -523,8 +733,15 @@ module.exports = {
       .filter((group) => !group.isPersonal)
       .map((group) => {
         const groupExpenses = expensesByGroup.get(group.id) || [];
-        const { gastoPlanejado, consumidoPct, pendencias, aporteAFazer, coberturaPct } =
-          computeGroupMetrics(group, groupExpenses);
+        const metrics = computeGroupMetrics(group, groupExpenses);
+        const { gastoPlanejado, consumidoPct, pendencias, aporteAFazer, coberturaPct } = metrics;
+
+        // Obra CONCLUIDO está encerrada e congelada (sem novos lançamentos):
+        // pendência antiga nunca mais vai ser resolvida nem vale mais como
+        // risco, e caixa/orçamento não pedem mais ação. Nada aqui é acionável.
+        if (metrics.situacao === 'CONCLUIDO') {
+          return null;
+        }
 
         if (gastoPlanejado === 0) {
           return {
@@ -536,6 +753,13 @@ module.exports = {
             consumidoPct: null,
             valor: null,
           };
+        }
+
+        // Obra sem nenhum lançamento ainda não tem nada pra alertar: caixa
+        // (R$0) comparado contra o orçamento inteiro dispararia sempre, no
+        // instante em que a obra é criada.
+        if (isSemMovimento(metrics)) {
+          return null;
         }
 
         if (coberturaPct !== null && coberturaPct < 100 && aporteAFazer > 0) {
@@ -597,7 +821,7 @@ module.exports = {
       const metrics = computeGroupMetrics(group, groupExpenses);
 
       let status = 'no_prazo';
-      if (metrics.custoReal === 0 && metrics.totalAportado === 0) {
+      if (isSemMovimento(metrics)) {
         status = 'sem_movimento';
       } else if (!metrics.gastoPlanejado) {
         status = 'sem_orcamento';
@@ -628,6 +852,11 @@ module.exports = {
         lucroReconhecido: metrics.lucroReconhecido,
         margemPct: metrics.margemPct,
         margemPrevistaPct: metrics.margemPrevistaPct,
+
+        valorVendaEsperada: metrics.valorVendaEsperada,
+        lucroPrevisto: metrics.lucroPrevisto,
+        custoProjetado: metrics.custoProjetado,
+        lucroProjetado: metrics.lucroProjetado,
 
         situacao: metrics.situacao,
         valorFechamento: metrics.valorFechamento,

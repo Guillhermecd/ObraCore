@@ -1,23 +1,31 @@
+import { AuditOutlined } from "@ant-design/icons";
 import { theme } from "antd";
-import { Kpi } from "../../components/Kpi";
-import { kpiGridStyle } from "../../components/layout";
-import { SectionBlock } from "../../components/SectionBlock";
-import type { DashboardResultado } from "../../api/modules/types";
+import { DetailCard } from "../../components/DetailCard";
+import type { DashboardResultado, PeriodoConsolidado } from "../../api/modules/types";
 import { plural } from "../../utils/format";
 import { usePrivacyFormat } from "../../privacyContext";
 import { saldoColor } from "../../utils/thresholds";
 
+const PERIODO_SUBLABEL: Record<PeriodoConsolidado, string> = {
+  mes: "Reconhecido no mês",
+  tri: "Reconhecido no trimestre",
+  ano: "Reconhecido no ano",
+};
+
 type ResultBlockProps = {
   resultado: DashboardResultado | null;
+  periodo: PeriodoConsolidado;
   loading: boolean;
 };
 
 /**
  * Resultado é alimentado só por obra de cliente: obra própria não gera
  * receita — o dinheiro que entra nela é aporte do próprio dono, e somá-la aqui
- * inventaria lucro. Isso fica escrito na tela, não só no código.
+ * inventaria lucro. Único bloco de resultado que responde ao seletor de
+ * período do Consolidado (Mês/Trimestre/Ano) — os outros dois (projetado,
+ * realizado) são snapshot/acumulados.
  */
-export function ResultBlock({ resultado, loading }: ResultBlockProps) {
+export function ResultBlock({ resultado, periodo, loading }: ResultBlockProps) {
   const { token } = theme.useToken();
   const { formatCurrency, formatPercent } = usePrivacyFormat();
 
@@ -28,64 +36,46 @@ export function ResultBlock({ resultado, loading }: ResultBlockProps) {
   const margemPct = resultado?.margemPct ?? null;
   const margemPrevistaPct = resultado?.margemPrevistaPct ?? null;
 
-  if (!loading && contratosAtivos === 0) {
-    return (
-      <SectionBlock title="Resultado" scope="acumulado">
-        <div style={{ color: token.colorTextSecondary, fontSize: 13 }}>
-          Nenhuma obra de cliente com contrato informado. Só obra de cliente
-          compõe o resultado.
-        </div>
-      </SectionBlock>
-    );
-  }
-
   return (
-    <SectionBlock
+    <DetailCard
+      icon={<AuditOutlined />}
       title="Resultado"
-      scope="acumulado"
-      footnote={
-        <>
-          {margemPrevistaPct !== null && (
-            <>
-              Margem prevista na conclusão: {formatPercent(margemPrevistaPct)}
-              .{" "}
-            </>
-          )}
-          Obras próprias não compõem o resultado — o dinheiro que entra nelas é
-          aporte de capital, não receita.
-        </>
+      sublabel={PERIODO_SUBLABEL[periodo]}
+      loading={loading}
+      emptyMessage={
+        !loading && contratosAtivos === 0
+          ? "Nenhuma obra de cliente com contrato informado no período. Só obra de cliente compõe o resultado."
+          : undefined
       }
-    >
-      <div style={kpiGridStyle}>
-        <Kpi
-          loading={loading}
-          label="Contratos ativos"
-          value={plural(contratosAtivos, "contrato", "contratos")}
-          hint="Número de obras de cliente com valor de contrato informado."
-        />
-        <Kpi
-          loading={loading}
-          label="Receita reconhecida"
-          value={formatCurrency(receitaReconhecida)}
-          hint="Valor do contrato × avanço da obra, medido por custo sobre custo (custo realizado ÷ orçamento)."
-        />
-        <Kpi
-          loading={loading}
-          label="Custo realizado"
-          value={formatCurrency(custoRealizado)}
-          hint="Soma das saídas já realizadas nas obras de cliente com contrato informado."
-        />
-        <Kpi
-          loading={loading}
-          label="Lucro reconhecido"
-          value={formatCurrency(lucroReconhecido)}
-          color={saldoColor(lucroReconhecido, token)}
-          hint="Receita reconhecida menos custo realizado. Margem = lucro reconhecido ÷ receita reconhecida."
-          detail={
-            margemPct === null ? null : `Margem de ${formatPercent(margemPct)}`
-          }
-        />
-      </div>
-    </SectionBlock>
+      footnote={
+        margemPrevistaPct !== null && (
+          <>Margem prevista na conclusão: {formatPercent(margemPrevistaPct)}.</>
+        )
+      }
+      stats={[
+        {
+          label: "Contratos ativos",
+          value: plural(contratosAtivos, "contrato", "contratos"),
+          hint: "Obras de cliente com contrato informado, ativas no período selecionado.",
+        },
+        {
+          label: "Receita",
+          value: formatCurrency(receitaReconhecida),
+          hint: "Receita reconhecida no período, pelo percentual de avanço da obra (custo realizado ÷ orçamento) aplicado ao valor do contrato.",
+        },
+        {
+          label: "Custo",
+          value: formatCurrency(custoRealizado),
+          hint: "Custo realizado no período, somando os lançamentos de saída das obras de cliente.",
+        },
+        {
+          label: "Lucro",
+          value: formatCurrency(lucroReconhecido),
+          color: saldoColor(lucroReconhecido, token),
+          detail: margemPct === null ? null : `margem ${formatPercent(margemPct)}`,
+          hint: "Receita reconhecida menos custo realizado no período.",
+        },
+      ]}
+    />
   );
 }

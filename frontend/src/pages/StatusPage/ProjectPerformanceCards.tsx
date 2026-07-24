@@ -109,15 +109,22 @@ function BaseBlock({ project }: { project: ProjectPerformance }) {
   const { token } = theme.useToken();
   const { formatCurrency } = usePrivacyFormat();
 
-  const situacao =
-    project.coberturaPct === null
+  // Obra sem nenhum lançamento ainda: "Faltam R$X" passaria a sensação de
+  // dívida numa obra que acabou de ser criada — o caixa não deve nada porque
+  // nada aconteceu ainda, não porque está coberto.
+  const semMovimento = project.status === "sem_movimento";
+
+  const situacao = semMovimento
+    ? "Sem movimentação ainda"
+    : project.coberturaPct === null
       ? "Sem orçamento a executar"
       : project.aporteAFazer > 0
         ? `Faltam ${formatCurrency(project.aporteAFazer)}`
         : "Coberto";
 
-  const situacaoColor =
-    project.coberturaPct === null
+  const situacaoColor = semMovimento
+    ? token.colorTextSecondary
+    : project.coberturaPct === null
       ? token.colorTextSecondary
       : project.aporteAFazer > 0
         ? token.colorWarning
@@ -231,25 +238,143 @@ function ContratoBlock({
         hint="Total de entradas já realizadas nesta obra."
       />
       <Field
-        label="Lucro reconhecido"
+        label="Lucro previsto"
         value={
-          project.lucroReconhecido === null
+          project.lucroPrevisto === null
             ? "—"
-            : formatCurrency(project.lucroReconhecido)
+            : formatCurrency(project.lucroPrevisto)
         }
         color={
-          project.lucroReconhecido === null
+          project.lucroPrevisto === null
             ? undefined
-            : saldoColor(project.lucroReconhecido, token)
+            : saldoColor(project.lucroPrevisto, token)
         }
-        hint="Receita reconhecida (valor do contrato × avanço) menos o custo gasto."
+        hint="Valor do contrato menos o orçamento. Fixo — a referência do dia em que o negócio foi fechado."
       />
       <Field
-        label="Margem"
+        label="Lucro projetado"
         value={
-          project.margemPct === null ? "—" : formatPercent(project.margemPct)
+          project.lucroProjetado === null
+            ? "—"
+            : formatCurrency(project.lucroProjetado)
         }
-        hint="Lucro reconhecido dividido pela receita reconhecida."
+        color={
+          project.lucroProjetado === null
+            ? undefined
+            : saldoColor(project.lucroProjetado, token)
+        }
+        hint={
+          "Se tudo sair como planejado: valor do contrato menos custo já gasto e já previsto. Atualiza conforme lançamentos entram." +
+          (project.lucroReconhecido === null
+            ? ""
+            : ` Detalhe contábil: pelo método de percentual de conclusão (receita reconhecida × avanço), o lucro já reconhecido até agora é ${formatCurrency(project.lucroReconhecido)}${project.margemPct === null ? "" : `, margem de ${formatPercent(project.margemPct)}`}.`)
+        }
+      />
+    </div>
+  );
+}
+
+/**
+ * Só obra PROPRIA em andamento (sem `valorVendaEsperada`, vira chamado à
+ * ação). Equivalente ao `ContratoBlock` de obra de cliente, mas sem "Lucro
+ * reconhecido"/margem — obra própria não reconhece receita formalmente,
+ * `valorVendaEsperada` é só uma estimativa de planejamento.
+ */
+function VendaEsperadaBlock({
+  project,
+  onOpenProject,
+}: {
+  project: ProjectPerformance;
+  onOpenProject: (groupId: string) => void;
+}) {
+  const { token } = theme.useToken();
+  const { formatCurrency } = usePrivacyFormat();
+
+  if (!permissionsFor(project.myRole).canViewFinanceiro) {
+    return (
+      <div>
+        <div style={{ ...blockLabelStyle, color: token.colorTextSecondary }}>
+          Venda esperada
+        </div>
+        <div style={{ fontSize: 13, color: token.colorTextSecondary }}>
+          Valor de venda esperado e lucro previsto são visíveis apenas para o
+          dono e os administradores desta obra.
+        </div>
+      </div>
+    );
+  }
+
+  if (project.valorVendaEsperada === null) {
+    return (
+      <div>
+        <div style={{ ...blockLabelStyle, color: token.colorTextSecondary }}>
+          Venda esperada
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            color: token.colorTextSecondary,
+            marginBottom: 8,
+          }}
+        >
+          Valor de venda esperado ainda não informado. Sem ele não há previsão
+          de lucro a calcular nesta obra.
+        </div>
+        <Button
+          size="small"
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            event.stopPropagation();
+            onOpenProject(project.id);
+          }}
+        >
+          Informar venda esperada
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ ...blockLabelStyle, color: token.colorTextSecondary }}>
+        Venda esperada
+      </div>
+      <Field
+        label="Valor de venda esperado"
+        value={formatCurrency(project.valorVendaEsperada)}
+        hint="Estimativa de venda informada no planejamento desta obra."
+      />
+      <Field
+        label={entradaLabel(project.tipoObra)}
+        value={formatCurrency(project.totalAportado)}
+        hint="Total de entradas já realizadas nesta obra."
+      />
+      <Field
+        label="Lucro previsto"
+        value={
+          project.lucroPrevisto === null
+            ? "—"
+            : formatCurrency(project.lucroPrevisto)
+        }
+        color={
+          project.lucroPrevisto === null
+            ? undefined
+            : saldoColor(project.lucroPrevisto, token)
+        }
+        hint="Venda esperada menos o orçamento. Fixo — a referência do dia em que o valor foi informado."
+      />
+      <Field
+        label="Lucro projetado"
+        value={
+          project.lucroProjetado === null
+            ? "—"
+            : formatCurrency(project.lucroProjetado)
+        }
+        color={
+          project.lucroProjetado === null
+            ? undefined
+            : saldoColor(project.lucroProjetado, token)
+        }
+        hint="Se tudo sair como planejado: venda esperada menos custo já gasto e já previsto. Atualiza conforme lançamentos entram."
       />
     </div>
   );
@@ -338,10 +463,6 @@ function ProjectCard({
   const isDesktop = Boolean(screens.md);
   const isCliente = project.tipoObra === "CLIENTE";
   const isConcluida = project.situacao === "CONCLUIDO";
-  // Lado direito do card: fechamento para quem terminou (dos dois tipos),
-  // contrato para obra de cliente ainda em andamento. Obra própria em
-  // andamento não tem lado direito.
-  const showSideBlock = isConcluida || isCliente;
 
   // Divisória entre base e o bloco lateral: vertical quando lado a lado,
   // horizontal quando empilham.
@@ -414,30 +535,30 @@ function ProjectCard({
         </Tooltip>
       )}
 
-      {showSideBlock ? (
-        <div
-          style={{
-            display: "grid",
-            gap: 16,
-            // Base à esquerda, bloco lateral à direita; empilha com a base
-            // primeiro em largura reduzida.
-            gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr",
-          }}
-        >
-          <BaseBlock project={project} />
-          <div style={sideDividerStyle}>
-            {isConcluida ? (
-              <FechamentoBlock project={project} />
-            ) : (
-              <ContratoBlock project={project} onOpenProject={onOpenProject} />
-            )}
-          </div>
-        </div>
-      ) : (
+      <div
+        style={{
+          display: "grid",
+          gap: 16,
+          // Base à esquerda, bloco lateral à direita; empilha com a base
+          // primeiro em largura reduzida. Toda obra tem bloco lateral agora:
+          // fechamento (concluída), contrato (cliente em andamento) ou venda
+          // esperada (própria em andamento).
+          gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr",
+        }}
+      >
         <BaseBlock project={project} />
-      )}
+        <div style={sideDividerStyle}>
+          {isConcluida ? (
+            <FechamentoBlock project={project} />
+          ) : isCliente ? (
+            <ContratoBlock project={project} onOpenProject={onOpenProject} />
+          ) : (
+            <VendaEsperadaBlock project={project} onOpenProject={onOpenProject} />
+          )}
+        </div>
+      </div>
 
-      {project.pendencias > 0 && (
+      {!isConcluida && project.pendencias > 0 && (
         <div
           style={{
             marginTop: 10,
@@ -516,15 +637,10 @@ export function ProjectPerformanceCards({
       </SectionBlock>
 
       <SectionBlock title="Obras próprias" scope="acumulado">
-        <div
-          style={{
-            display: "grid",
-            gap: 16,
-            // auto-fit (e não auto-fill) para a grade preencher a largura
-            // disponível em vez de deixar colunas vazias à direita.
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          }}
-        >
+        {/* Coluna única, como "Obras de cliente": toda obra própria agora
+            também pode ter bloco lateral (venda esperada), então o card
+            precisa da mesma largura pra caber os dois lados confortavelmente. */}
+        <div style={{ display: "grid", gap: 16 }}>
           {loading ? (
             <LoadingCards />
           ) : obrasProprias.length === 0 ? (

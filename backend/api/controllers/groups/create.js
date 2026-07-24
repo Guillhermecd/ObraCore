@@ -5,6 +5,7 @@ module.exports = async function create(req, res) {
     plannedSpending,
     tipoObra,
     valorContrato,
+    valorVendaEsperada,
     situacao,
     valorFechamento,
   } = req.body;
@@ -21,7 +22,12 @@ module.exports = async function create(req, res) {
     return res.badRequest({ message: plannedSpendingFields.error });
   }
 
-  const obraFields = sails.services.groupservice.resolveObraFields(tipoObra, valorContrato, null);
+  const obraFields = sails.services.groupservice.resolveObraFields(
+    tipoObra,
+    valorContrato,
+    valorVendaEsperada,
+    null,
+  );
   if (obraFields.error) {
     return res.badRequest({ message: obraFields.error });
   }
@@ -44,6 +50,10 @@ module.exports = async function create(req, res) {
 
   const groupIds = Array.isArray(req.userRecord.groupIds) ? req.userRecord.groupIds : [];
   await User.updateOne({ id: req.user.id }).set({ groupIds: [...groupIds, group.id] });
+
+  if (situacaoFields.situacao !== undefined || situacaoFields.valorFechamento !== undefined) {
+    await sails.services.groupservice.syncFechamentoExpense(group, req.user.id);
+  }
 
   return res.status(201).json({
     group: sails.services.groupservice.serializeGroup(group, req.user.id),

@@ -2,6 +2,25 @@ function toArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+/**
+ * Parser comum pra campo monetário opcional: `''`/`null`/`undefined` viram
+ * `null`; texto inválido ou negativo vira `{ error }`; senão o número.
+ * Reaproveitado por `valorContrato`, `valorVendaEsperada` e `valorFechamento`
+ * — todos seguem a mesma regra de validação.
+ */
+function parseMoneyOrNull(raw, errorMessage) {
+  if (raw === null || raw === '') {
+    return { value: null };
+  }
+
+  const parsed = Number(raw);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return { error: errorMessage };
+  }
+
+  return { value: parsed };
+}
+
 function buildPlannedSpendingHistoryEntry(value, previousValue, user) {
   return {
     value,
@@ -56,9 +75,22 @@ const CAMPOS_FINANCEIROS = [
   'margemPrevistaPct',
   'valorFechamento',
   'lucroRealizado',
+  'valorVendaEsperada',
+  'lucroPrevisto',
+  'custoProjetado',
+  'lucroProjetado',
 ];
 
 const SITUACOES_OBRA = ['PLANEJADO', 'EM_ANDAMENTO', 'CONCLUIDO'];
+
+/**
+ * Nome fixo da categoria/fonte usadas pelo lançamento ENTRADA gerado
+ * automaticamente ao concluir uma obra (ver `syncFechamentoExpense`). Servem
+ * de chave de idempotência: o lançamento automático é sempre identificado
+ * pelo `categoryId` desta categoria, nunca por um contador ou flag separada.
+ */
+const FECHAMENTO_CATEGORIA_NOME = 'Recebimento de fechamento';
+const FECHAMENTO_FONTE_NOME = 'Fechamento de obra';
 
 module.exports = {
   isMember(userRecord, groupId) {
@@ -153,6 +185,10 @@ module.exports = {
       tipoObra: group.tipoObra || 'PROPRIA',
       valorContrato:
         !podeVerFinanceiro || group.valorContrato === undefined ? null : group.valorContrato,
+      valorVendaEsperada:
+        !podeVerFinanceiro || group.valorVendaEsperada === undefined
+          ? null
+          : group.valorVendaEsperada,
       situacao: group.situacao || 'EM_ANDAMENTO',
       valorFechamento:
         !podeVerFinanceiro || group.valorFechamento === undefined ? null : group.valorFechamento,
@@ -162,15 +198,16 @@ module.exports = {
   },
 
   /**
-   * Valida e normaliza `tipoObra`/`valorContrato` para create e update, no
-   * mesmo formato `{ error }` dos helpers de `plannedSpending`.
+   * Valida e normaliza `tipoObra`/`valorContrato`/`valorVendaEsperada` para
+   * create e update, no mesmo formato `{ error }` dos helpers de
+   * `plannedSpending`.
    *
-   * `valorContrato` só existe em obra de CLIENTE — ao voltar para PROPRIA o
-   * contrato é zerado, senão um valor órfão continuaria alimentando receita
-   * reconhecida de uma obra que deixou de ser de cliente. Devolve `{}` quando
-   * nenhum dos dois foi informado.
+   * `valorContrato` só existe em obra CLIENTE, `valorVendaEsperada` só em
+   * PROPRIA — cada um zera quando a obra deixa de ser do tipo correspondente,
+   * senão um valor órfão continuaria alimentando cálculo de uma obra que já
+   * não é mais daquele tipo. Devolve `{}` quando nada foi informado.
    */
-  resolveObraFields(rawTipoObra, rawValorContrato, currentGroup) {
+  resolveObraFields(rawTipoObra, rawValorContrato, rawValorVendaEsperada, currentGroup) {
     const values = {};
 
     const tipoObra =
@@ -183,30 +220,39 @@ module.exports = {
       values.tipoObra = tipoObra;
     }
 
-    if (tipoObra === 'PROPRIA') {
-      // Só zera se o tipo mudou agora ou se o contrato veio no payload —
-      // um update de nome não deve mexer em contrato.
-      if (rawTipoObra !== undefined || rawValorContrato !== undefined) {
+    const tipoMudou = rawTipoObra !== undefined;
+
+    // valorContrato: só CLIENTE. Zera se o tipo mudou agora (saiu de CLIENTE)
+    // ou se veio no payload sem a obra ser CLIENTE — update de nome sozinho
+    // não deve mexer em contrato.
+    if (tipoObra !== 'CLIENTE') {
+      if (tipoMudou || rawValorContrato !== undefined) {
         values.valorContrato = null;
       }
-      return values;
+    } else if (rawValorContrato !== undefined) {
+      const parsedValorContrato = parseMoneyOrNull(rawValorContrato, 'Valor do contrato inválido.');
+      if (parsedValorContrato.error) {
+        return { error: parsedValorContrato.error };
+      }
+      values.valorContrato = parsedValorContrato.value;
     }
 
-    if (rawValorContrato === undefined) {
-      return values;
+    // valorVendaEsperada: só PROPRIA, mesma regra simétrica.
+    if (tipoObra !== 'PROPRIA') {
+      if (tipoMudou || rawValorVendaEsperada !== undefined) {
+        values.valorVendaEsperada = null;
+      }
+    } else if (rawValorVendaEsperada !== undefined) {
+      const parsedValorVendaEsperada = parseMoneyOrNull(
+        rawValorVendaEsperada,
+        'Valor de venda esperado inválido.',
+      );
+      if (parsedValorVendaEsperada.error) {
+        return { error: parsedValorVendaEsperada.error };
+      }
+      values.valorVendaEsperada = parsedValorVendaEsperada.value;
     }
 
-    if (rawValorContrato === null || rawValorContrato === '') {
-      values.valorContrato = null;
-      return values;
-    }
-
-    const parsedValorContrato = Number(rawValorContrato);
-    if (Number.isNaN(parsedValorContrato) || parsedValorContrato < 0) {
-      return { error: 'Valor do contrato inválido.' };
-    }
-
-    values.valorContrato = parsedValorContrato;
     return values;
   },
 
@@ -239,18 +285,111 @@ module.exports = {
       return { error: 'Valor de fechamento só pode ser informado com a obra concluída.' };
     }
 
-    if (rawValorFechamento === null || rawValorFechamento === '') {
-      values.valorFechamento = null;
-      return values;
+    const parsedValorFechamento = parseMoneyOrNull(rawValorFechamento, 'Valor de fechamento inválido.');
+    if (parsedValorFechamento.error) {
+      return { error: parsedValorFechamento.error };
     }
 
-    const parsedValorFechamento = Number(rawValorFechamento);
-    if (Number.isNaN(parsedValorFechamento) || parsedValorFechamento < 0) {
-      return { error: 'Valor de fechamento inválido.' };
-    }
-
-    values.valorFechamento = parsedValorFechamento;
+    values.valorFechamento = parsedValorFechamento.value;
     return values;
+  },
+
+  /**
+   * Mantém em sincronia o lançamento ENTRADA "Recebimento de fechamento" da
+   * obra: garante que, sempre que a obra estiver CONCLUIDO com um
+   * `valorFechamento` definido, exista exatamente um lançamento cobrindo a
+   * diferença entre o fechamento e o que já foi aportado — assim o saldo de
+   * caixa passa a refletir o lucro realizado (valorFechamento − custoReal)
+   * sem exigir que o usuário lance manualmente o recebimento do
+   * cliente/comprador.
+   *
+   * Rodado a cada update de `situacao`/`valorFechamento` (fechar, reabrir ou
+   * editar o valor já fechado com a obra concluída) — nunca só na transição
+   * para CONCLUIDO, porque a obra pode ser reaberta e fechada de novo, ou o
+   * valor pode mudar depois de já concluída.
+   *
+   * O lançamento automático é identificado pelo `categoryId` da categoria
+   * dedicada (find-or-create por nome), nunca por uma flag separada. Reabrir
+   * a obra (ou zerar o valor de fechamento) remove o lançamento — o saldo
+   * volta a refletir só o dinheiro de fato lançado.
+   */
+  async syncFechamentoExpense(group, actingUserId) {
+    const category = await ExpenseCategory.findOne({
+      groupId: group.id,
+      name: FECHAMENTO_CATEGORIA_NOME,
+    });
+    const existing = category
+      ? await Expense.findOne({ groupId: group.id, categoryId: category.id })
+      : null;
+
+    const deveExistir = group.situacao === 'CONCLUIDO' && group.valorFechamento != null;
+    if (!deveExistir) {
+      if (existing) {
+        await Expense.destroyOne({ id: existing.id });
+      }
+      return;
+    }
+
+    const groupExpenses = await Expense.find({ groupId: group.id });
+    // Exclui o próprio lançamento automático da soma — senão, ao recalcular
+    // numa segunda edição, o valor já contado nele "some" do que falta cobrir
+    // e o lançamento colapsa para 0 a cada novo save.
+    const totalAportadoOutros = groupExpenses.reduce((sum, expense) => {
+      if (existing && expense.id === existing.id) {
+        return sum;
+      }
+      return expense.tipo === 'ENTRADA' && expense.dataRealizada ? sum + expense.amount : sum;
+    }, 0);
+
+    const desiredAmount =
+      Math.round(Math.max(group.valorFechamento - totalAportadoOutros, 0) * 100) / 100;
+
+    if (desiredAmount <= 0) {
+      if (existing) {
+        await Expense.destroyOne({ id: existing.id });
+      }
+      return;
+    }
+
+    if (existing) {
+      await Expense.updateOne({ id: existing.id }).set({ amount: desiredAmount });
+      return;
+    }
+
+    const resolvedCategory =
+      category ||
+      (await ExpenseCategory.create({
+        name: FECHAMENTO_CATEGORIA_NOME,
+        owner: actingUserId,
+        groupId: group.id,
+        tipo: 'ENTRADA',
+      }).fetch());
+
+    let source = await ExpenseSource.findOne({ groupId: group.id, name: FECHAMENTO_FONTE_NOME });
+    if (!source) {
+      source = await ExpenseSource.create({
+        name: FECHAMENTO_FONTE_NOME,
+        owner: actingUserId,
+        groupId: group.id,
+        tipo: 'ENTRADA',
+      }).fetch();
+    }
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    await Expense.create({
+      date: hoje,
+      categoryId: resolvedCategory.id,
+      sourceId: source.id,
+      supplier: null,
+      paymentMethod: 'Transferência',
+      amount: desiredAmount,
+      notes: 'Gerado automaticamente ao concluir a obra — recebimento referente ao valor de fechamento.',
+      owner: actingUserId,
+      groupId: group.id,
+      tipo: 'ENTRADA',
+      dataPrevista: hoje,
+      dataRealizada: hoje,
+    }).fetch();
   },
 
   /**

@@ -40,6 +40,14 @@ module.exports = {
     // CONCLUIDO. Vale para os dois tipos de obra: CLIENTE normalmente reusa
     // `valorContrato`, PROPRIA vendida guarda aqui o valor da venda.
     valorFechamento: { type: 'number', allowNull: true },
+
+    // Equivalente a `valorContrato`, mas para obra PROPRIA: uma estimativa de
+    // venda informada no planejamento, pra dar previsão de lucro antes da
+    // obra terminar. Diferente de `valorContrato`, NÃO gera receita
+    // reconhecida nem lucro reconhecido — só alimenta `lucroPrevisto`/
+    // `lucroProjetado` (DashboardService). Obra própria não reconhece receita
+    // formalmente, é regra já testada e mantida.
+    valorVendaEsperada: { type: 'number', allowNull: true },
   },
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {

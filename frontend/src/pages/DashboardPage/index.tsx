@@ -10,6 +10,7 @@ import {
   Skeleton,
   Table,
   Tabs,
+  Tag,
   message,
   theme,
   type TableColumnsType,
@@ -33,7 +34,12 @@ import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
 import { formatDate, formatMonth, plural } from "../../utils/format";
 import { usePrivacyFormat } from "../../privacyContext";
-import { entradaLabel, entradaPendenteLabel } from "../../utils/obra";
+import {
+  SITUACAO_OBRA_COLOR,
+  SITUACAO_OBRA_LABEL,
+  entradaLabel,
+  entradaPendenteLabel,
+} from "../../utils/obra";
 import {
   coberturaColor,
   consumoColor,
@@ -282,6 +288,11 @@ export function DashboardPage() {
         >
           <h1 style={pageTitleStyle}>Obra — Financeiro</h1>
           <GroupSelect />
+          {!noActiveGroup && obra && (
+            <Tag color={SITUACAO_OBRA_COLOR[obra.situacao]} style={{ margin: 0 }}>
+              {SITUACAO_OBRA_LABEL[obra.situacao]}
+            </Tag>
+          )}
           {/* Fora do `export-ignore` de propósito: o PDF esconde o seletor de
               datas, então sem este rótulo o arquivo exportado mostraria dados
               filtrados sem dizer de que período são. */}
@@ -329,7 +340,24 @@ export function DashboardPage() {
         </Card>
       )}
 
-      {!noActiveGroup && !loading && (obra?.pendencias ?? 0) > 0 && (
+      {!noActiveGroup && !loading && obra?.situacao === "CONCLUIDO" && (
+        <AntAlert
+          type="success"
+          showIcon
+          style={{ marginBottom: 24 }}
+          message="Obra concluída — não recebe mais lançamentos"
+          description={
+            obra.valorFechamento === null
+              ? "Valor de fechamento ainda não informado. Sem ele não há lucro definitivo a calcular."
+              : `Valor de fechamento: ${formatCurrency(obra.valorFechamento)}. Lucro realizado: ${formatCurrency(obra.lucroRealizado ?? 0)}.`
+          }
+        />
+      )}
+
+      {!noActiveGroup &&
+        !loading &&
+        obra?.situacao !== "CONCLUIDO" &&
+        (obra?.pendencias ?? 0) > 0 && (
         <AntAlert
           type="warning"
           showIcon

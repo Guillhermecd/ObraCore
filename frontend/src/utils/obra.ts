@@ -23,6 +23,15 @@ export const TIPO_OBRA_LABEL: Record<TipoObra, string> = {
   CLIENTE: "Obra de cliente",
 };
 
+/**
+ * Rótulo do valor esperado da obra: contrato de cliente ou venda esperada de
+ * obra própria. Os dois alimentam `lucroPrevisto`/`lucroProjetado`, mas só o
+ * contrato de cliente gera receita reconhecida formal.
+ */
+export function valorEsperadoLabel(tipoObra: TipoObra): string {
+  return tipoObra === "CLIENTE" ? "Valor do contrato" : "Valor de venda esperado";
+}
+
 export const SITUACAO_OBRA_LABEL: Record<SituacaoObra, string> = {
   PLANEJADO: "Planejado",
   EM_ANDAMENTO: "Em andamento",

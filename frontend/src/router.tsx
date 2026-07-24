@@ -6,6 +6,7 @@ import { GroupsPage } from "./pages/GroupsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { StatusPage } from "./pages/StatusPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VisaoGeralPage } from "./pages/VisaoGeralPage";
 
@@ -32,6 +33,10 @@ export const router = createBrowserRouter([
       {
         path: "/consolidado",
         element: <VisaoGeralPage />,
+      },
+      {
+        path: "/status",
+        element: <StatusPage />,
       },
       {
         path: "/obra",

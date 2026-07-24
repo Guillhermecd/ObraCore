@@ -14,6 +14,7 @@ type CreateGroupPayload = {
   plannedSpending?: number;
   tipoObra?: TipoObra;
   valorContrato?: number | null;
+  valorVendaEsperada?: number | null;
   situacao?: SituacaoObra;
   valorFechamento?: number | null;
 };

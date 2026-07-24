@@ -28,7 +28,11 @@ import type {
 } from "../../api/modules/types";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivacyFormat } from "../../privacyContext";
-import { SITUACAO_OBRA_LABEL, TIPO_OBRA_LABEL } from "../../utils/obra";
+import {
+  SITUACAO_OBRA_LABEL,
+  TIPO_OBRA_LABEL,
+  valorEsperadoLabel,
+} from "../../utils/obra";
 import {
   ASSIGNABLE_ROLE_OPTIONS,
   GROUP_ROLE_HINT,
@@ -42,6 +46,7 @@ type EditGroupForm = {
   plannedSpending: number;
   tipoObra: TipoObra;
   valorContrato: number | null;
+  valorVendaEsperada: number | null;
   situacao: SituacaoObra;
   valorFechamento: number | null;
 };
@@ -76,6 +81,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
       plannedSpending: 0,
       tipoObra: "PROPRIA",
       valorContrato: null,
+      valorVendaEsperada: null,
       situacao: "EM_ANDAMENTO",
       valorFechamento: null,
     },
@@ -83,6 +89,10 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
   const editTipoObra = useWatch({ control: editForm.control, name: "tipoObra" });
   const editSituacao = useWatch({ control: editForm.control, name: "situacao" });
   const editValorContrato = useWatch({ control: editForm.control, name: "valorContrato" });
+  const editValorVendaEsperada = useWatch({
+    control: editForm.control,
+    name: "valorVendaEsperada",
+  });
   const isConcluindo = editSituacao === "CONCLUIDO" && group?.situacao !== "CONCLUIDO";
   const inviteForm = useForm<InviteForm>({
     defaultValues: { email: "", role: "FISCAL" },
@@ -111,11 +121,14 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
       plannedSpending: group.plannedSpending,
       tipoObra: group.tipoObra,
       valorContrato: group.valorContrato,
+      valorVendaEsperada: group.valorVendaEsperada,
       situacao: group.situacao,
-      // Sugere o valor do contrato como valor de fechamento na primeira vez
-      // que a obra de cliente é concluída; se já tem valorFechamento gravado
-      // (obra reaberta), respeita o que já foi informado.
-      valorFechamento: group.valorFechamento ?? group.valorContrato,
+      // Sugere o contrato (CLIENTE) ou a venda esperada (PROPRIA) como valor
+      // de fechamento na primeira vez que a obra é concluída; se já tem
+      // valorFechamento gravado (obra reaberta), respeita o que já foi
+      // informado.
+      valorFechamento:
+        group.valorFechamento ?? group.valorContrato ?? group.valorVendaEsperada,
     });
     inviteForm.reset({ email: "", role: "FISCAL" });
 
@@ -142,6 +155,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
         plannedSpending: values.plannedSpending,
         tipoObra: values.tipoObra,
         valorContrato: values.tipoObra === "CLIENTE" ? values.valorContrato : null,
+        valorVendaEsperada: values.tipoObra === "PROPRIA" ? values.valorVendaEsperada : null,
         situacao: values.situacao,
         // O backend só aceita valorFechamento junto de situacao CONCLUIDO —
         // fora disso o valor gravado é preservado (não zera ao reabrir).
@@ -280,7 +294,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
           render={({ field }) => (
             <Form.Item
               label="Tipo de obra"
-              help="Só obra de cliente compõe o resultado (receita e lucro reconhecidos) do Consolidado."
+              help="Só obra de cliente compõe o resultado por avanço (receita e lucro reconhecidos) do Consolidado. Obra própria pode ter uma venda esperada, pra previsão de lucro."
             >
               <Select
                 {...field}
@@ -292,12 +306,36 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
             </Form.Item>
           )}
         />
-        {editTipoObra === "CLIENTE" && (
+        {editTipoObra === "CLIENTE" ? (
           <Controller
             name="valorContrato"
             control={editForm.control}
             render={({ field }) => (
-              <Form.Item label="Valor do contrato">
+              <Form.Item label={valorEsperadoLabel("CLIENTE")}>
+                <InputNumber
+                  {...field}
+                  value={field.value ?? undefined}
+                  onChange={(value) => field.onChange(value ?? null)}
+                  style={{ width: "100%" }}
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  decimalSeparator=","
+                  prefix="R$"
+                  placeholder="Pode ser informado depois"
+                />
+              </Form.Item>
+            )}
+          />
+        ) : (
+          <Controller
+            name="valorVendaEsperada"
+            control={editForm.control}
+            render={({ field }) => (
+              <Form.Item
+                label={valorEsperadoLabel("PROPRIA")}
+                help="Opcional. Informado, já dá uma previsão de lucro (venda esperada − orçamento), mesmo antes da obra terminar."
+              >
                 <InputNumber
                   {...field}
                   value={field.value ?? undefined}
@@ -371,16 +409,21 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
                   decimalSeparator=","
                   prefix="R$"
                   addonAfter={
-                    editValorContrato != null ? (
+                    editValorContrato != null || editValorVendaEsperada != null ? (
                       <Button
                         type="link"
                         size="small"
                         style={{ padding: 0 }}
                         onClick={() =>
-                          editForm.setValue("valorFechamento", editValorContrato)
+                          editForm.setValue(
+                            "valorFechamento",
+                            editValorContrato ?? editValorVendaEsperada,
+                          )
                         }
                       >
-                        Usar valor do contrato
+                        {editValorContrato != null
+                          ? "Usar valor do contrato"
+                          : "Usar venda esperada"}
                       </Button>
                     ) : undefined
                   }

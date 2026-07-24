@@ -74,6 +74,18 @@ module.exports = async function obra(req, res) {
     nome: group.name,
     tipoObra: metrics.tipoObra,
     valorContrato: podeVerFinanceiro ? metrics.valorContrato : null,
+    valorVendaEsperada: podeVerFinanceiro ? metrics.valorVendaEsperada : null,
+
+    // Ciclo de vida da obra. `situacao` não é financeira, sempre visível.
+    // `valorFechamento`/`lucroRealizado` só existem quando CONCLUIDO — o
+    // lucro aqui é sempre `fechamento − custo`, então se o fechamento veio
+    // maior que o contrato original (obra vendida por mais do que o
+    // combinado), a diferença inteira já está dentro dele.
+    situacao: metrics.situacao,
+    valorFechamento: podeVerFinanceiro ? metrics.valorFechamento : null,
+    lucroRealizado: podeVerFinanceiro ? metrics.lucroRealizado : null,
+    lucroPrevisto: podeVerFinanceiro ? metrics.lucroPrevisto : null,
+    lucroProjetado: podeVerFinanceiro ? metrics.lucroProjetado : null,
 
     // Bloco de orçamento — acumulado do projeto, ignora from/to.
     orcamentoPrevisto: metrics.gastoPlanejado,

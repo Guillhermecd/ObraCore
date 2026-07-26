@@ -2,19 +2,6 @@ const fs = require('fs');
 
 const ALLOWED_CONTENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
-function uploadFile(req) {
-  return new Promise((resolve, reject) => {
-    req.file('file').upload({ maxBytes: 5 * 1024 * 1024 }, (error, files) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve(files[0]);
-    });
-  });
-}
-
 module.exports = async function uploadComprovante(req, res) {
   const groupId = await sails.services.groupservice.resolveGroupId(req);
 
@@ -28,7 +15,7 @@ module.exports = async function uploadComprovante(req, res) {
     return res.status(404).json({ message: 'Lançamento não encontrado.' });
   }
 
-  const file = await uploadFile(req);
+  const file = await sails.services.storageservice.receiveUploadedFile(req);
 
   if (!file) {
     return res.badRequest({ message: 'Arquivo obrigatório.' });

@@ -5,7 +5,7 @@ function toDateKey(dateLike) {
 }
 
 module.exports = async function cashflowForecast(req, res) {
-  const groupIds = Array.isArray(req.userRecord.groupIds) ? req.userRecord.groupIds : [];
+  const groupIds = sails.services.groupservice.toArray(req.userRecord.groupIds);
 
   if (groupIds.length === 0) {
     return res.json({ entradasPrevistas: 0, saidasPrevistas: 0, resultadoPrevisto: 0, serie: [] });

@@ -1,6 +1,5 @@
 import { PaperClipOutlined } from "@ant-design/icons";
 import { Button, Modal, Popconfirm, Tag, Typography, message, theme } from "antd";
-import dayjs from "dayjs";
 import type { CSSProperties } from "react";
 import { ExpenseService } from "../../api/modules/ExpenseService";
 import type {
@@ -8,6 +7,8 @@ import type {
   ExpenseCategory,
   ExpenseSource,
 } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
+import { formatDate } from "../../utils/format";
 import { usePrivacyFormat } from "../../privacyContext";
 import { usePermissions } from "../../layouts/usePermissions";
 
@@ -67,9 +68,7 @@ export function ExpenseDetailModal({
       messageApi.success("Lançamento excluído.");
       onDeleted();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao excluir lançamento.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao excluir lançamento."));
     }
   };
 
@@ -106,7 +105,7 @@ export function ExpenseDetailModal({
         <Text style={labelStyle} type="secondary">
           Data
         </Text>
-        <div style={valueStyle}>{dayjs(expense.date).format("DD/MM/YYYY")}</div>
+        <div style={valueStyle}>{formatDate(expense.date)}</div>
       </div>
       <div style={rowStyle}>
         <Text style={labelStyle} type="secondary">

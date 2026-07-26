@@ -8,6 +8,24 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
   (import.meta.env.DEV ? "http://localhost:1337/api" : "/api");
 
+const EXPIRED_SESSION_NOTICE_KEY = "authSessionExpiredNotice";
+const DEFAULT_EXPIRED_SESSION_MESSAGE = "Sua sessão expirou. Faça login novamente.";
+
+function decodeJwtPayload(token: string): { exp?: number } | null {
+  const parts = token.split(".");
+  if (parts.length < 2) {
+    return null;
+  }
+
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    return JSON.parse(atob(padded)) as { exp?: number };
+  } catch {
+    return null;
+  }
+}
+
 export const authStorage = {
   getToken() {
     return localStorage.getItem("authToken");
@@ -26,6 +44,30 @@ export const authStorage = {
     // com quem está logado, e que agora seriam perdidas a cada token expirado.
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
+  },
+  setExpiredSessionNotice(message: string = DEFAULT_EXPIRED_SESSION_MESSAGE) {
+    sessionStorage.setItem(EXPIRED_SESSION_NOTICE_KEY, message);
+  },
+  consumeExpiredSessionNotice() {
+    const notice = sessionStorage.getItem(EXPIRED_SESSION_NOTICE_KEY);
+    if (notice) {
+      sessionStorage.removeItem(EXPIRED_SESSION_NOTICE_KEY);
+    }
+    return notice;
+  },
+  getTokenExpirationAt(token?: string | null) {
+    const currentToken = token ?? authStorage.getToken();
+
+    if (!currentToken) {
+      return null;
+    }
+
+    const payload = decodeJwtPayload(currentToken);
+    if (!payload || typeof payload.exp !== "number") {
+      return null;
+    }
+
+    return payload.exp * 1000;
   },
 };
 
@@ -58,13 +100,15 @@ export class ApiError extends Error {
   }
 }
 
-/** Sessão morta: limpa o storage e manda para o login sem passar pelo router. */
-function handleExpiredSession() {
+/** Sessão morta: limpa o storage, avisa o usuário e manda para o login. */
+export function expireSession() {
   // Guarda para não disparar N redirects quando várias requisições da mesma
   // tela voltam 401 juntas.
   if (window.location.pathname === "/login") {
     return;
   }
+
+  authStorage.setExpiredSessionNotice();
   authStorage.clear();
   window.location.replace("/login");
 }
@@ -127,7 +171,7 @@ export async function api<T>(
   // existe, não se ele vale. Só vale para chamadas autenticadas — em `/login`
   // um 401 é senha errada, e ali a mensagem tem que aparecer no formulário.
   if (response.status === 401 && authenticated) {
-    handleExpiredSession();
+    expireSession();
   }
 
   return parseResponse<T>(response);

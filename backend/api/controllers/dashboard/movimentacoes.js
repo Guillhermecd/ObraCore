@@ -21,7 +21,7 @@ function isWithinPeriod(dateValue, from, to) {
 }
 
 module.exports = async function movimentacoes(req, res) {
-  const groupIds = Array.isArray(req.userRecord.groupIds) ? req.userRecord.groupIds : [];
+  const groupIds = sails.services.groupservice.toArray(req.userRecord.groupIds);
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
   const { from, to } = req.query;

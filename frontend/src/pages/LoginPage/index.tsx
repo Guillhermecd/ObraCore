@@ -1,7 +1,7 @@
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import { Button, Card, Form, Grid, Input, message, theme } from "antd";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { AuthService } from "../../api/modules/AuthService";
@@ -9,6 +9,7 @@ import { authStorage } from "../../api/modules/api";
 import { BrandLogo } from "../../branding/BrandLogo";
 import { useBranding } from "../../branding/BrandingContext";
 import { hexToRgba, resolveBrandColors } from "../../theme";
+import { getErrorMessage } from "../../utils/errors";
 import { CreateAccountModal } from "./CreateAccountModal";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
 
@@ -78,11 +79,16 @@ export function LoginPage() {
       authStorage.setSession(response.token, response.user);
       navigate("/obra", { replace: true });
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao entrar.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao entrar."));
     }
   };
+
+  useEffect(() => {
+    const notice = authStorage.consumeExpiredSessionNotice();
+    if (notice) {
+      messageApi.warning(notice);
+    }
+  }, [messageApi]);
 
   return (
     <main style={authShellStyle}>

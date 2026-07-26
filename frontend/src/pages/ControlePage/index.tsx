@@ -40,7 +40,8 @@ import {
 } from "../../components/tableFilters";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
-import { plural } from "../../utils/format";
+import { getErrorMessage } from "../../utils/errors";
+import { formatDate, plural } from "../../utils/format";
 import { usePrivacyFormat } from "../../privacyContext";
 import { usePermissions } from "../../layouts/usePermissions";
 import { ExpenseDetailModal } from "./ExpenseDetailModal";
@@ -144,9 +145,7 @@ export function ControlePage() {
         setExpenses(expensesResponse.expenses);
       })
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar dados.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar dados."));
       })
       .finally(() => setLoading(false));
   }, [messageApi, refreshKey, activeGroupId]);
@@ -167,9 +166,7 @@ export function ControlePage() {
     try {
       await ExpenseService.exportXlsx();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao exportar planilha.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao exportar planilha."));
     } finally {
       setExporting(false);
     }
@@ -219,7 +216,7 @@ export function ControlePage() {
       dataIndex: "date",
       key: "date",
       sorter: (a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf(),
-      render: (value: string) => dayjs(value).format("DD/MM/YYYY"),
+      render: (value: string) => formatDate(value),
       ...dateRangeFilter(),
       filteredValue: filters.date ?? null,
       onFilter: (value, record) => matchesDateRange(record.date, value),

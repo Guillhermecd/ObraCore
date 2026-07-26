@@ -24,6 +24,7 @@ import { AuthService } from "../../api/modules/AuthService";
 import { ProfileService } from "../../api/modules/ProfileService";
 import { authStorage } from "../../api/modules/api";
 import type { User } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
 
 type NameForm = {
@@ -154,9 +155,7 @@ export function ProfilePage() {
     ProfileService.getProfile()
       .then((response) => syncUser(response.user))
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar perfil.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar perfil."));
       })
       .finally(() => setLoading(false));
   }, [messageApi, syncUser]);
@@ -218,9 +217,7 @@ export function ProfilePage() {
       });
       messageApi.success(response.message);
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao reenviar validação.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao reenviar validação."));
     } finally {
       setResendingVerification(false);
     }
@@ -238,9 +235,7 @@ export function ProfilePage() {
       onSuccess?.(response);
     } catch (error) {
       onError?.(error as Error);
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao enviar foto.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao enviar foto."));
     }
   };
 

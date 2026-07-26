@@ -374,14 +374,21 @@ function formatRangeLabel(fromKey, toKey) {
 }
 
 /**
- * Janela do seletor Mês/Trimestre/Ano do Consolidado, sempre terminando em
- * `reference` (hoje, em produção):
+ * Janela do seletor Mês/Trimestre/Ano/Tudo do Consolidado, sempre terminando
+ * em `reference` (hoje, em produção):
  *   mes: 1º dia do mês corrente → hoje.
  *   tri: hoje − 3 meses civis → hoje (janela rolante, mesmo comprimento do
  *        ritmo de gasto — `RITMO_MESES`).
  *   ano: 1º de janeiro do ano corrente → hoje.
+ *   tudo: sem início — todo o histórico até hoje. `from: null` é o sentinel
+ *         que `filterByPeriod` já trata como -Infinity, então não precisa de
+ *         nenhuma outra mudança pra "sem recorte" funcionar.
  */
 function resolvePeriodRange(period, reference = startOfTodayUTC()) {
+  if (period === 'tudo') {
+    return { from: null, to: toDateKey(reference), label: 'Todo o período' };
+  }
+
   let fromDate;
   if (period === 'mes') {
     fromDate = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1));
@@ -404,6 +411,10 @@ function resolvePeriodRange(period, reference = startOfTodayUTC()) {
  *   mes: mês civil anterior inteiro.
  *   tri: os 3 meses civis imediatamente antes da janela atual.
  *   ano: ano civil anterior inteiro.
+ *
+ * Não tem ramo `tudo`: sem início definido não existe "janela anterior de
+ * mesma duração" pra comparar. O chamador (`dashboard/summary.js`) não invoca
+ * esta função quando `periodo === 'tudo'` — o delta fica `null` direto.
  */
 function resolvePreviousPeriodRange(period, reference = startOfTodayUTC()) {
   if (period === 'mes') {
@@ -450,26 +461,6 @@ module.exports = {
   },
 
   startOfTodayUTC,
-
-  /**
-   * Totais realizados de entrada/saída/saldo — fonte única para o resumo
-   * consolidado. Antes duplicado (com nomes de campo diferentes) em
-   * `dashboard/overview` (removido) e inline em `dashboard/summary`.
-   */
-  computeTotals(expenses) {
-    const totalEntrada = expenses
-      .filter((expense) => expense.tipo === 'ENTRADA' && isRealizada(expense))
-      .reduce((sum, expense) => sum + expense.amount, 0);
-    const totalSaida = expenses
-      .filter((expense) => expense.tipo === 'SAIDA' && isRealizada(expense))
-      .reduce((sum, expense) => sum + expense.amount, 0);
-
-    return {
-      totalEntrada: round2(totalEntrada),
-      totalSaida: round2(totalSaida),
-      saldoGeral: round2(totalEntrada - totalSaida),
-    };
-  },
 
   isRealizada,
   forecastDate,

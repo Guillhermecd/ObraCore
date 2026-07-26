@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo } from "react";
 
 import {
   formatCompactCurrency as rawFormatCompactCurrency,
@@ -8,39 +7,12 @@ import {
   formatPercent as rawFormatPercent,
 } from "./utils/format";
 
-interface PrivacyContextProps {
+export interface PrivacyContextProps {
   readonly valuesHidden: boolean;
   readonly toggleValues: () => void;
 }
 
-const PrivacyContext = createContext<PrivacyContextProps | undefined>(
-  undefined,
-);
-
-const STORAGE_KEY = "values-hidden";
-
-export function PrivacyProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [valuesHidden, setValuesHidden] = useState<boolean>(
-    () => localStorage.getItem(STORAGE_KEY) === "true",
-  );
-
-  const value = useMemo(
-    () => ({
-      valuesHidden,
-      toggleValues: () =>
-        setValuesHidden((prev) => {
-          const next = !prev;
-          localStorage.setItem(STORAGE_KEY, String(next));
-          return next;
-        }),
-    }),
-    [valuesHidden],
-  );
-
-  return (
-    <PrivacyContext.Provider value={value}>{children}</PrivacyContext.Provider>
-  );
-}
+export const PrivacyContext = createContext<PrivacyContextProps | undefined>(undefined);
 
 export function usePrivacy() {
   const context = useContext(PrivacyContext);

@@ -22,9 +22,7 @@ module.exports = {
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {
     try {
-      const timestamp = sails.services.timeservice.nowIso();
-      valuesToSet.createdAt = timestamp;
-      valuesToSet.updatedAt = timestamp;
+      sails.services.timeservice.applyCreateTimestamps(valuesToSet);
       return proceed();
     } catch (error) {
       return proceed(error);
@@ -33,7 +31,7 @@ module.exports = {
 
   beforeUpdate: async function beforeUpdate(valuesToSet, proceed) {
     try {
-      valuesToSet.updatedAt = sails.services.timeservice.nowIso();
+      sails.services.timeservice.applyUpdateTimestamp(valuesToSet);
       return proceed();
     } catch (error) {
       return proceed(error);

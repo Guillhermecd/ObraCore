@@ -48,9 +48,17 @@ export function formatMonth(value: string): string {
   return `${label.replace(".", "")}/${year}`;
 }
 
-/** `YYYY-MM-DD` -> "12/11/2026", sem arrastar dayjs para componentes simples. */
+/**
+ * `YYYY-MM-DD` -> "12/11/2026", sem arrastar dayjs para componentes simples.
+ * Aceita também um ISO datetime completo (`2026-11-12T03:00:00.000Z`): usa
+ * só os 10 primeiros caracteres, ignorando o horário/fuso — o mesmo critério
+ * que o backend já usa para extrair a data de um lançamento (`slice(0, 10)`
+ * em `DashboardService`), em vez de reabrir o valor num parser com fuso
+ * horário local que poderia devolver o dia anterior/seguinte para quem vê a
+ * tela num fuso diferente de quem lançou.
+ */
 export function formatDate(value: string): string {
-  const [year, month, day] = value.split("-");
+  const [year, month, day] = value.slice(0, 10).split("-");
   return `${day}/${month}/${year}`;
 }
 

@@ -1,15 +1,13 @@
 import { AuditOutlined } from "@ant-design/icons";
-import { theme } from "antd";
-import { DetailCard } from "../../components/DetailCard";
 import type { DashboardResultado, PeriodoConsolidado } from "../../api/modules/types";
-import { plural } from "../../utils/format";
 import { usePrivacyFormat } from "../../privacyContext";
-import { saldoColor } from "../../utils/thresholds";
+import { ResultadoDetailBlock } from "./ResultadoDetailBlock";
 
 const PERIODO_SUBLABEL: Record<PeriodoConsolidado, string> = {
   mes: "Reconhecido no mês",
   tri: "Reconhecido no trimestre",
   ano: "Reconhecido no ano",
+  tudo: "Reconhecido no total",
 };
 
 type ResultBlockProps = {
@@ -26,56 +24,38 @@ type ResultBlockProps = {
  * realizado) são snapshot/acumulados.
  */
 export function ResultBlock({ resultado, periodo, loading }: ResultBlockProps) {
-  const { token } = theme.useToken();
-  const { formatCurrency, formatPercent } = usePrivacyFormat();
-
-  const contratosAtivos = resultado?.contratosAtivos ?? 0;
-  const receitaReconhecida = resultado?.receitaReconhecida ?? 0;
-  const custoRealizado = resultado?.custoRealizado ?? 0;
-  const lucroReconhecido = resultado?.lucroReconhecido ?? 0;
-  const margemPct = resultado?.margemPct ?? null;
+  const { formatPercent } = usePrivacyFormat();
   const margemPrevistaPct = resultado?.margemPrevistaPct ?? null;
 
   return (
-    <DetailCard
+    <ResultadoDetailBlock
       icon={<AuditOutlined />}
       title="Resultado"
       sublabel={PERIODO_SUBLABEL[periodo]}
       loading={loading}
-      emptyMessage={
-        !loading && contratosAtivos === 0
-          ? "Nenhuma obra de cliente com contrato informado no período. Só obra de cliente compõe o resultado."
-          : undefined
-      }
+      resumo={resultado}
+      pick={(r) => ({
+        count: r.contratosAtivos,
+        primary: r.receitaReconhecida,
+        secondary: r.custoRealizado,
+        lucro: r.lucroReconhecido,
+        margemPct: r.margemPct,
+      })}
+      emptyMessage="Nenhuma obra de cliente com contrato informado no período. Só obra de cliente compõe o resultado."
       footnote={
         margemPrevistaPct !== null && (
           <>Margem prevista na conclusão: {formatPercent(margemPrevistaPct)}.</>
         )
       }
-      stats={[
-        {
-          label: "Contratos ativos",
-          value: plural(contratosAtivos, "contrato", "contratos"),
-          hint: "Obras de cliente com contrato informado, ativas no período selecionado.",
-        },
-        {
-          label: "Receita",
-          value: formatCurrency(receitaReconhecida),
-          hint: "Receita reconhecida no período, pelo percentual de avanço da obra (custo realizado ÷ orçamento) aplicado ao valor do contrato.",
-        },
-        {
-          label: "Custo",
-          value: formatCurrency(custoRealizado),
-          hint: "Custo realizado no período, somando os lançamentos de saída das obras de cliente.",
-        },
-        {
-          label: "Lucro",
-          value: formatCurrency(lucroReconhecido),
-          color: saldoColor(lucroReconhecido, token),
-          detail: margemPct === null ? null : `margem ${formatPercent(margemPct)}`,
-          hint: "Receita reconhecida menos custo realizado no período.",
-        },
-      ]}
+      countLabel="Contratos ativos"
+      countNounSingular="contrato"
+      countNounPlural="contratos"
+      countHint="Obras de cliente com contrato informado, ativas no período selecionado."
+      primaryLabel="Receita"
+      primaryHint="Receita reconhecida no período, pelo percentual de avanço da obra (custo realizado ÷ orçamento) aplicado ao valor do contrato."
+      secondaryLabel="Custo"
+      secondaryHint="Custo realizado no período, somando os lançamentos de saída das obras de cliente."
+      lucroHint="Receita reconhecida menos custo realizado no período."
     />
   );
 }

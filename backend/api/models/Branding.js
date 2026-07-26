@@ -18,9 +18,7 @@ module.exports = {
       if (valuesToSet.key) {
         valuesToSet.key = valuesToSet.key.toLowerCase().trim();
       }
-      const timestamp = sails.services.timeservice.nowIso();
-      valuesToSet.createdAt = timestamp;
-      valuesToSet.updatedAt = timestamp;
+      sails.services.timeservice.applyCreateTimestamps(valuesToSet);
       return proceed();
     } catch (error) {
       return proceed(error);
@@ -32,7 +30,7 @@ module.exports = {
       if (valuesToSet.key) {
         valuesToSet.key = valuesToSet.key.toLowerCase().trim();
       }
-      valuesToSet.updatedAt = sails.services.timeservice.nowIso();
+      sails.services.timeservice.applyUpdateTimestamp(valuesToSet);
       return proceed();
     } catch (error) {
       return proceed(error);

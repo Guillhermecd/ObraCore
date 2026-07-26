@@ -23,6 +23,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import type { CreateExpensePayload } from "../../api/modules/ExpenseService";
 import { ExpenseService } from "../../api/modules/ExpenseService";
 import { PAYMENT_METHODS } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 import type {
   Expense,
   ExpenseCategory,
@@ -205,20 +206,14 @@ export function ExpenseFormModal({
         try {
           await ExpenseService.uploadComprovante(expenseId, comprovanteFile);
         } catch (error) {
-          messageApi.error(
-            error instanceof Error
-              ? error.message
-              : "Erro ao anexar comprovante.",
-          );
+          messageApi.error(getErrorMessage(error, "Erro ao anexar comprovante."));
         }
       }
 
       onSaved();
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao salvar lançamento.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao salvar lançamento."));
     }
   };
 

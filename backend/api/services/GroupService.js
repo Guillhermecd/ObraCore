@@ -93,6 +93,8 @@ const FECHAMENTO_CATEGORIA_NOME = 'Recebimento de fechamento';
 const FECHAMENTO_FONTE_NOME = 'Fechamento de obra';
 
 module.exports = {
+  toArray,
+
   isMember(userRecord, groupId) {
     return toArray(userRecord && userRecord.groupIds).includes(groupId);
   },

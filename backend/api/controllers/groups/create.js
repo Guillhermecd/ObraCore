@@ -48,7 +48,7 @@ module.exports = async function create(req, res) {
     ...situacaoFields,
   }).fetch();
 
-  const groupIds = Array.isArray(req.userRecord.groupIds) ? req.userRecord.groupIds : [];
+  const groupIds = sails.services.groupservice.toArray(req.userRecord.groupIds);
   await User.updateOne({ id: req.user.id }).set({ groupIds: [...groupIds, group.id] });
 
   if (situacaoFields.situacao !== undefined || situacaoFields.valorFechamento !== undefined) {

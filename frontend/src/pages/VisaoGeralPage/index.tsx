@@ -11,6 +11,7 @@ import type {
 } from "../../api/modules/types";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
+import { getErrorMessage } from "../../utils/errors";
 import { AlertsPanel } from "./AlertsPanel";
 import { CashFlowForecast } from "./CashFlowForecast";
 import { ExecutiveSummary } from "./ExecutiveSummary";
@@ -24,7 +25,20 @@ const PERIODO_OPTIONS: { label: string; value: PeriodoConsolidado }[] = [
   { label: "Mês", value: "mes" },
   { label: "Trimestre", value: "tri" },
   { label: "Ano", value: "ano" },
+  { label: "Tudo", value: "tudo" },
 ];
+
+/**
+ * Palavra usada na frase do cabeçalho ("O período X governa..."), separada
+ * do rótulo do pill do Segmented: "Tudo" vira "todo o período" na frase, não
+ * um `.toLowerCase()` direto do rótulo.
+ */
+const PERIODO_FRASE: Record<PeriodoConsolidado, string> = {
+  mes: "mês",
+  tri: "trimestre",
+  ano: "ano",
+  tudo: "todo o período",
+};
 
 const pageHeaderRowStyle: CSSProperties = {
   display: "flex",
@@ -66,7 +80,7 @@ export function VisaoGeralPage() {
   const { setActiveGroupId } = useActiveGroup();
   const [messageApi, contextHolder] = message.useMessage();
 
-  const [periodo, setPeriodo] = useState<PeriodoConsolidado>("ano");
+  const [periodo, setPeriodo] = useState<PeriodoConsolidado>("tudo");
 
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   // Loading derivado do período já carregado — trocar de período já entra em
@@ -87,11 +101,7 @@ export function VisaoGeralPage() {
     DashboardService.summary(periodo)
       .then((response) => setSummary(response))
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar o consolidado de caixa.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar o consolidado de caixa."));
       })
       .finally(() => setLoadedPeriodo(periodo));
   }, [messageApi, periodo]);
@@ -100,11 +110,7 @@ export function VisaoGeralPage() {
     DashboardService.cashflowForecast()
       .then((response) => setForecast(response))
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar fluxo de caixa previsto.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar fluxo de caixa previsto."));
       })
       .finally(() => setForecastLoading(false));
   }, [messageApi]);
@@ -113,9 +119,7 @@ export function VisaoGeralPage() {
     DashboardService.alerts()
       .then((response) => setAlerts(response))
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar alertas.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar alertas."));
       })
       .finally(() => setAlertsLoading(false));
   }, [messageApi]);
@@ -144,9 +148,7 @@ export function VisaoGeralPage() {
             }}
           >
             Caixa e resultado de todas as obras. O período{" "}
-            <strong style={{ color: token.colorText }}>
-              {PERIODO_OPTIONS.find((option) => option.value === periodo)?.label.toLowerCase()}
-            </strong>{" "}
+            <strong style={{ color: token.colorText }}>{PERIODO_FRASE[periodo]}</strong>{" "}
             governa o Resultado e a tendência.
           </p>
         </div>

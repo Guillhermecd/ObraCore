@@ -23,6 +23,7 @@ import type {
 import { SectionBlock } from "../../components/SectionBlock";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
+import { getErrorMessage } from "../../utils/errors";
 import { usePrivacyFormat } from "../../privacyContext";
 import { ProjectPerformanceCards } from "./ProjectPerformanceCards";
 
@@ -85,11 +86,7 @@ export function StatusPage() {
     DashboardService.projectsPerformance()
       .then((response) => setProjects(response))
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar desempenho das obras.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar desempenho das obras."));
       })
       .finally(() => setProjectsLoading(false));
   }, [messageApi]);
@@ -101,11 +98,7 @@ export function StatusPage() {
         setTotal(response.total);
       })
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar movimentações.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar movimentações."));
       })
       .finally(() => setLoadedMovKey(movKey));
   }, [messageApi, page, from, to, movKey]);

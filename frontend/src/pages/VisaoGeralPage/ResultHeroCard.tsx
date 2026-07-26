@@ -23,12 +23,20 @@ const PERIODO_WORD: Record<PeriodoConsolidado, string> = {
   mes: "no mês",
   tri: "no trimestre",
   ano: "no ano",
+  tudo: "no total",
 };
 
+/**
+ * "tudo" nunca aparece de fato: sem janela anterior pra comparar,
+ * `resultadoDeltaPct` sempre vem `null` nesse período e a linha de delta
+ * não é renderizada (ver `resultadoDeltaPct !== null` abaixo). A chave
+ * existe só para satisfazer o `Record<PeriodoConsolidado, string>`.
+ */
 const PERIODO_ANTERIOR_WORD: Record<PeriodoConsolidado, string> = {
   mes: "mês anterior",
   tri: "trimestre anterior",
   ano: "ano anterior",
+  tudo: "período anterior",
 };
 
 type ResultHeroCardProps = {

@@ -1,10 +1,6 @@
 import { CheckCircleOutlined } from "@ant-design/icons";
-import { theme } from "antd";
-import { DetailCard } from "../../components/DetailCard";
 import type { DashboardResultadoRealizado } from "../../api/modules/types";
-import { plural } from "../../utils/format";
-import { usePrivacyFormat } from "../../privacyContext";
-import { saldoColor } from "../../utils/thresholds";
+import { ResultadoDetailBlock } from "./ResultadoDetailBlock";
 
 type ResultadoRealizadoBlockProps = {
   resultadoRealizado: DashboardResultadoRealizado | null;
@@ -22,50 +18,30 @@ export function ResultadoRealizadoBlock({
   resultadoRealizado,
   loading,
 }: ResultadoRealizadoBlockProps) {
-  const { token } = theme.useToken();
-  const { formatCurrency, formatPercent } = usePrivacyFormat();
-
-  const obrasConcluidas = resultadoRealizado?.obrasConcluidas ?? 0;
-  const valorFechamentoTotal = resultadoRealizado?.valorFechamentoTotal ?? 0;
-  const custoRealizadoTotal = resultadoRealizado?.custoRealizadoTotal ?? 0;
-  const lucroRealizadoTotal = resultadoRealizado?.lucroRealizadoTotal ?? 0;
-  const margemPct = resultadoRealizado?.margemPct ?? null;
-
   return (
-    <DetailCard
+    <ResultadoDetailBlock
       icon={<CheckCircleOutlined />}
       title="Lucro realizado"
       sublabel="Obras concluídas"
       loading={loading}
-      emptyMessage={
-        !loading && obrasConcluidas === 0
-          ? "Nenhuma obra concluída ainda."
-          : undefined
-      }
-      stats={[
-        {
-          label: "Obras",
-          value: plural(obrasConcluidas, "obra", "obras"),
-          hint: "Obras com status Concluído e valor de fechamento informado, de cliente e próprias.",
-        },
-        {
-          label: "Valor de fechamento",
-          value: formatCurrency(valorFechamentoTotal),
-          hint: "Soma do valor pelo qual cada obra concluída foi entregue ou vendida.",
-        },
-        {
-          label: "Custo realizado",
-          value: formatCurrency(custoRealizadoTotal),
-          hint: "Soma de todo o custo gasto nas obras concluídas, do início ao fim.",
-        },
-        {
-          label: "Lucro",
-          value: formatCurrency(lucroRealizadoTotal),
-          color: saldoColor(lucroRealizadoTotal, token),
-          detail: margemPct === null ? null : `margem ${formatPercent(margemPct)}`,
-          hint: "Valor de fechamento menos custo realizado total das obras concluídas.",
-        },
-      ]}
+      resumo={resultadoRealizado}
+      pick={(r) => ({
+        count: r.obrasConcluidas,
+        primary: r.valorFechamentoTotal,
+        secondary: r.custoRealizadoTotal,
+        lucro: r.lucroRealizadoTotal,
+        margemPct: r.margemPct,
+      })}
+      emptyMessage="Nenhuma obra concluída ainda."
+      countLabel="Obras"
+      countNounSingular="obra"
+      countNounPlural="obras"
+      countHint="Obras com status Concluído e valor de fechamento informado, de cliente e próprias."
+      primaryLabel="Valor de fechamento"
+      primaryHint="Soma do valor pelo qual cada obra concluída foi entregue ou vendida."
+      secondaryLabel="Custo realizado"
+      secondaryHint="Soma de todo o custo gasto nas obras concluídas, do início ao fim."
+      lucroHint="Valor de fechamento menos custo realizado total das obras concluídas."
     />
   );
 }

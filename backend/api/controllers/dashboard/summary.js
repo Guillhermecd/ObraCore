@@ -1,7 +1,7 @@
-const VALID_PERIODS = ['mes', 'tri', 'ano'];
+const VALID_PERIODS = ['mes', 'tri', 'ano', 'tudo'];
 
 function normalizePeriod(raw) {
-  return VALID_PERIODS.includes(raw) ? raw : 'ano';
+  return VALID_PERIODS.includes(raw) ? raw : 'tudo';
 }
 
 function buildEmptySummary(periodo, periodoRange) {
@@ -48,9 +48,11 @@ function buildEmptySummary(periodo, periodoRange) {
  *     ignoram `?period`, um saldo ou uma previsão não fazem sentido dentro de
  *     uma janela.
  *   - Só `resultado` (lucro reconhecido por avanço) responde a `?period`
- *     (`mes`/`tri`/`ano`, default `ano`) — reaproveita `filterByPeriod` sobre
- *     as expenses ANTES de rodar `computeProjectPerformance`, no mesmo padrão
- *     já usado em `dashboard/obra.js` pros "flows" filtrados por período.
+ *     (`mes`/`tri`/`ano`/`tudo`, default `tudo`) — reaproveita `filterByPeriod`
+ *     sobre as expenses ANTES de rodar `computeProjectPerformance`, no mesmo
+ *     padrão já usado em `dashboard/obra.js` pros "flows" filtrados por
+ *     período. Em `tudo` não existe janela anterior pra comparar — o delta
+ *     comparativo fica `null` (ver bloco abaixo).
  *
  * O grupo Pessoal fica de fora: é registro da própria conta, não uma obra, e
  * incluí-lo distorceria caixa comprometido e cobertura.
@@ -62,7 +64,7 @@ module.exports = async function summary(req, res) {
   const periodo = normalizePeriod(req.query.period);
   const periodoRange = dashboardService.resolvePeriodRange(periodo);
 
-  const groupIds = Array.isArray(req.userRecord.groupIds) ? req.userRecord.groupIds : [];
+  const groupIds = groupService.toArray(req.userRecord.groupIds);
 
   if (groupIds.length === 0) {
     return res.json(buildEmptySummary(periodo, periodoRange));
@@ -104,24 +106,30 @@ module.exports = async function summary(req, res) {
     .filter(podeVerFinanceiro);
   const resultado = dashboardService.computeResultadoConsolidado(projetosDoPeriodo);
 
-  const periodoAnteriorRange = dashboardService.resolvePreviousPeriodRange(periodo);
-  const expensesPeriodoAnterior = dashboardService.filterByPeriod(
-    expenses,
-    periodoAnteriorRange.from,
-    periodoAnteriorRange.to,
-  );
-  const projetosPeriodoAnterior = dashboardService
-    .computeProjectPerformance(obras, expensesPeriodoAnterior)
-    .filter(podeVerFinanceiro);
-  const resultadoAnterior = dashboardService.computeResultadoConsolidado(projetosPeriodoAnterior);
-  const resultadoDeltaPct =
-    resultadoAnterior.lucroReconhecido !== 0
-      ? dashboardService.round2(
-          ((resultado.lucroReconhecido - resultadoAnterior.lucroReconhecido) /
-            Math.abs(resultadoAnterior.lucroReconhecido)) *
-            100,
-        )
-      : null;
+  // "tudo" não tem janela anterior de mesma duração pra comparar — pular o
+  // cálculo inteiro e deixar o delta null (não zero: zero renderizaria "0%
+  // vs. período anterior" na UI, que é uma comparação sem sentido aqui).
+  let resultadoDeltaPct = null;
+  if (periodo !== 'tudo') {
+    const periodoAnteriorRange = dashboardService.resolvePreviousPeriodRange(periodo);
+    const expensesPeriodoAnterior = dashboardService.filterByPeriod(
+      expenses,
+      periodoAnteriorRange.from,
+      periodoAnteriorRange.to,
+    );
+    const projetosPeriodoAnterior = dashboardService
+      .computeProjectPerformance(obras, expensesPeriodoAnterior)
+      .filter(podeVerFinanceiro);
+    const resultadoAnterior = dashboardService.computeResultadoConsolidado(projetosPeriodoAnterior);
+    resultadoDeltaPct =
+      resultadoAnterior.lucroReconhecido !== 0
+        ? dashboardService.round2(
+            ((resultado.lucroReconhecido - resultadoAnterior.lucroReconhecido) /
+              Math.abs(resultadoAnterior.lucroReconhecido)) *
+              100,
+          )
+        : null;
+  }
 
   // Tendência mistura uma série de caixa (todo mundo vê) com uma de lucro
   // reconhecido (só quem tem `viewFinanceiro`) — roda duas vezes, com o

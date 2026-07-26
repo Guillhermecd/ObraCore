@@ -52,7 +52,7 @@ Cada card (bg `#17140f`, borda `#2a2520`, radius 16): ícone + título, sublabel
 - Hover: itens de nav, botões de alerta e links mudam de fundo/cor.
 
 ## State Management
-- `period: 'mes' | 'tri' | 'ano'` (default `'ano'`). Deriva todos os valores filtrados.
+- `period: 'mes' | 'tri' | 'ano' | 'tudo'` (default `'tudo'`). Deriva todos os valores filtrados. Em `'tudo'` não há período anterior — o delta comparativo do herói fica oculto.
 - `showTrend: boolean` (mostra/oculta o gráfico).
 - Dados por período (substituir por fetch real da API): ver objeto `periods` no protótipo — chaves `receita, custo, lucro, margem, contratos, delta, range` e `rzObras/rzValor/rzCusto/rzLucro/rzMargem`.
 - Séries do gráfico: arrays `lucro[12]` e `caixa[12]` (valores em milhares) + `months[12]`.

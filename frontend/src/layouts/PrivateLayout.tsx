@@ -24,9 +24,9 @@ import {
   type MenuProps,
 } from "antd";
 import type { CSSProperties, ReactNode } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { authStorage } from "../api/modules/api";
+import { authStorage, expireSession } from "../api/modules/api";
 import { BrandLogo } from "../branding/BrandLogo";
 import { useBranding } from "../branding/BrandingContext";
 import { resolveBrandColors, resolveBrandDarkTheme } from "../theme";
@@ -136,6 +136,25 @@ function PrivateLayoutContent() {
   const { themeMode } = useTheme();
   const { token } = theme.useToken();
   const { error: groupsError, refreshGroups } = useActiveGroup();
+
+  useEffect(() => {
+    const expiresAt = authStorage.getTokenExpirationAt();
+    if (!expiresAt) {
+      return;
+    }
+
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) {
+      expireSession();
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      expireSession();
+    }, remaining);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const currentHeaderStyle: CSSProperties = useMemo(
     () => ({

@@ -1,6 +1,6 @@
-import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Card, Progress, Skeleton, Tooltip, theme } from "antd";
-import type { CSSProperties, ReactNode } from "react";
+import { Card, Progress, Skeleton, theme } from "antd";
+import type { CSSProperties } from "react";
+import { HintLabel } from "../../components/HintLabel";
 import { SectionBlock } from "../../components/SectionBlock";
 import type { DashboardSummaryResponse } from "../../api/modules/types";
 import { usePrivacyFormat } from "../../privacyContext";
@@ -31,17 +31,6 @@ const labelStyle: CSSProperties = {
   alignItems: "center",
   gap: 4,
 };
-
-function LabelWithHint({ label, hint }: { label: ReactNode; hint: string }) {
-  return (
-    <>
-      {label}
-      <Tooltip title={hint}>
-        <QuestionCircleOutlined style={{ cursor: "help", fontSize: 11 }} />
-      </Tooltip>
-    </>
-  );
-}
 
 const valueStyle: CSSProperties = { fontSize: 24, fontWeight: 600 };
 
@@ -88,7 +77,7 @@ export function ExecutiveSummary({ summary, loading }: ExecutiveSummaryProps) {
             >
               <div style={columnStyle}>
                 <div style={{ ...labelStyle, color: token.colorTextSecondary }}>
-                  <LabelWithHint label="Saldo total" hint={SALDO_TOTAL_HINT} />
+                  <HintLabel label="Saldo total" hint={SALDO_TOTAL_HINT} iconFontSize={11} />
                 </div>
                 <div style={{ ...valueStyle, color: saldoColor(saldoTotal, token) }}>
                   {formatCurrency(saldoTotal)}
@@ -96,9 +85,10 @@ export function ExecutiveSummary({ summary, loading }: ExecutiveSummaryProps) {
               </div>
               <div style={dividerStyle}>
                 <div style={{ ...labelStyle, color: token.colorTextSecondary }}>
-                  <LabelWithHint
+                  <HintLabel
                     label="Comprometido com obra a executar"
                     hint={CAIXA_COMPROMETIDO_HINT}
+                    iconFontSize={11}
                   />
                 </div>
                 <div style={{ ...valueStyle, color: token.colorText }}>
@@ -107,7 +97,7 @@ export function ExecutiveSummary({ summary, loading }: ExecutiveSummaryProps) {
               </div>
               <div style={dividerStyle}>
                 <div style={{ ...labelStyle, color: token.colorTextSecondary }}>
-                  <LabelWithHint label="Caixa livre" hint={CAIXA_LIVRE_HINT} />
+                  <HintLabel label="Caixa livre" hint={CAIXA_LIVRE_HINT} iconFontSize={11} />
                 </div>
                 <div style={{ ...valueStyle, color: saldoColor(caixaLivre, token) }}>
                   {formatCurrency(caixaLivre)}
@@ -115,7 +105,7 @@ export function ExecutiveSummary({ summary, loading }: ExecutiveSummaryProps) {
               </div>
               <div style={dividerStyle}>
                 <div style={{ ...labelStyle, color: token.colorTextSecondary }}>
-                  <LabelWithHint label="Aporte total a fazer" hint={APORTE_HINT} />
+                  <HintLabel label="Aporte total a fazer" hint={APORTE_HINT} iconFontSize={11} />
                 </div>
                 <div
                   style={{
@@ -157,10 +147,7 @@ export function ExecutiveSummary({ summary, loading }: ExecutiveSummaryProps) {
                       gap: 4,
                     }}
                   >
-                    Cobertura de caixa
-                    <Tooltip title={COBERTURA_HINT}>
-                      <QuestionCircleOutlined style={{ cursor: "help", fontSize: 11 }} />
-                    </Tooltip>
+                    <HintLabel label="Cobertura de caixa" hint={COBERTURA_HINT} iconFontSize={11} />
                   </span>
                   <span
                     style={{

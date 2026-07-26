@@ -46,13 +46,6 @@ test('saldoEmCaixa (saldoAtual) == total aportado − custo realizado', () => {
   assert.notEqual(metrics.saldoAtual, 60510.48);
 });
 
-test('computeTotals soma apenas lançamentos realizados, por tipo', () => {
-  const { totalEntrada, totalSaida, saldoGeral } = DashboardService.computeTotals(OBRA_EXPENSES);
-  assert.equal(totalEntrada, 125000);
-  assert.equal(totalSaida, 59489.52);
-  assert.equal(saldoGeral, 65510.48);
-});
-
 test('equivalência entre fontes: computeProjectPerformance e buildAlerts usam o mesmo consumidoPct', () => {
   const performance = DashboardService.computeProjectPerformance([OBRA], OBRA_EXPENSES)[0];
   const [alert] = DashboardService.buildAlerts([OBRA], OBRA_EXPENSES);
@@ -849,6 +842,11 @@ test('resolvePreviousPeriodRange "tri" == os 3 meses civis imediatamente antes d
 test('resolvePreviousPeriodRange "ano" == ano civil anterior inteiro', () => {
   const range = DashboardService.resolvePreviousPeriodRange('ano', PERIOD_REF);
   assert.deepEqual(range, { from: '2025-01-01', to: '2025-12-31', label: '01 jan → 31 dez 2025' });
+});
+
+test('resolvePeriodRange "tudo" == sem início, até hoje, com label literal', () => {
+  const range = DashboardService.resolvePeriodRange('tudo', PERIOD_REF);
+  assert.deepEqual(range, { from: null, to: '2026-07-23', label: 'Todo o período' });
 });
 
 test('computeTrend devolve 12 pontos, em ordem cronológica, terminando no mês de referência', () => {

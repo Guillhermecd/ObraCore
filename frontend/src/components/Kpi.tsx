@@ -1,6 +1,6 @@
-import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Card, Skeleton, Tooltip, theme } from "antd";
+import { Card, Skeleton, theme } from "antd";
 import type { CSSProperties, ReactNode } from "react";
+import { HintLabel } from "./HintLabel";
 
 /**
  * Anatomia única de indicador em todas as telas: rótulo acima, valor abaixo,
@@ -46,12 +46,7 @@ export function Kpi({
       ) : (
         <>
           <div style={{ ...labelStyle, color: token.colorTextSecondary }}>
-            {label}
-            {hint && (
-              <Tooltip title={hint}>
-                <QuestionCircleOutlined style={{ cursor: "help" }} />
-              </Tooltip>
-            )}
+            <HintLabel label={label} hint={hint} />
           </div>
           <div
             style={{

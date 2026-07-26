@@ -13,7 +13,6 @@ import {
   type TableColumnsType,
   type UploadProps,
 } from "antd";
-import dayjs from "dayjs";
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { triggerBlobDownload } from "../../api/modules/api";
@@ -22,6 +21,8 @@ import type {
   ExpenseImportPreviewResponse,
   ExpenseImportRow,
 } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
+import { formatDate } from "../../utils/format";
 import { usePrivacyFormat } from "../../privacyContext";
 
 const { Dragger } = Upload;
@@ -113,9 +114,7 @@ export function ImportExpensesModal({ open, onClose, onImported }: Props) {
         setStep("preview");
       })
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao ler o arquivo.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao ler o arquivo."));
       })
       .finally(() => setUploading(false));
     return false;
@@ -139,11 +138,7 @@ export function ImportExpensesModal({ open, onClose, onImported }: Props) {
       onImported();
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error
-          ? error.message
-          : "Erro ao importar lançamentos.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao importar lançamentos."));
     } finally {
       setCommitting(false);
     }
@@ -168,8 +163,7 @@ export function ImportExpensesModal({ open, onClose, onImported }: Props) {
       title: "Data",
       dataIndex: "date",
       key: "date",
-      render: (value: string | null) =>
-        value ? dayjs(value).format("DD/MM/YYYY") : "-",
+      render: (value: string | null) => (value ? formatDate(value) : "-"),
     },
     {
       title: "Categoria",

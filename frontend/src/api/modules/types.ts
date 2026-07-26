@@ -269,10 +269,11 @@ export type DashboardResultadoProjetado = {
   margemPct: number | null;
 };
 
-export type PeriodoConsolidado = "mes" | "tri" | "ano";
+export type PeriodoConsolidado = "mes" | "tri" | "ano" | "tudo";
 
 export type PeriodoRange = {
-  from: string;
+  /** `null` no período "tudo" — não há recorte de início, o filtro `filterByPeriod` do backend trata isso como -Infinity. */
+  from: string | null;
   to: string;
   label: string;
 };
@@ -288,7 +289,7 @@ export type TrendPoint = {
  * Bloco de caixa do Consolidado. `saldoTotal`..`coberturaCaixaPct`,
  * `resultadoRealizado` e `resultadoProjetado` são acumulados/ponto-no-tempo —
  * ignoram `periodo`. Só `resultado` (e o `resultadoDeltaPct` comparativo)
- * respondem ao `periodo` selecionado (Mês/Trimestre/Ano).
+ * respondem ao `periodo` selecionado (Mês/Trimestre/Ano/Tudo).
  */
 export type DashboardSummaryResponse = {
   saldoTotal: number;

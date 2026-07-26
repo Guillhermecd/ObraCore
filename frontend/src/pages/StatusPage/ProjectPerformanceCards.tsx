@@ -1,4 +1,3 @@
-import { QuestionCircleOutlined } from "@ant-design/icons";
 import {
   Button,
   Card,
@@ -11,6 +10,7 @@ import {
   theme,
 } from "antd";
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
+import { HintLabel } from "../../components/HintLabel";
 import { SectionBlock } from "../../components/SectionBlock";
 import type {
   ProjectPerformance,
@@ -86,12 +86,7 @@ function Field({
           gap: 4,
         }}
       >
-        {label}
-        {hint && (
-          <Tooltip title={hint}>
-            <QuestionCircleOutlined style={{ cursor: "help", fontSize: 11 }} />
-          </Tooltip>
-        )}
+        <HintLabel label={label} hint={hint} iconFontSize={11} />
       </span>
       <span style={{ fontWeight: 600, color: color ?? token.colorText }}>
         {value}

@@ -1,6 +1,6 @@
-import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Card, Skeleton, Tooltip, theme } from "antd";
+import { Card, Skeleton, theme } from "antd";
 import type { CSSProperties, ReactNode } from "react";
+import { HintLabel } from "./HintLabel";
 
 /**
  * Uma célula do grid 2×2 de mini-stats de um `DetailCard`: rótulo + valor,
@@ -110,12 +110,7 @@ export function DetailCard({
                   gap: 4,
                 }}
               >
-                {stat.label}
-                {stat.hint && (
-                  <Tooltip title={stat.hint}>
-                    <QuestionCircleOutlined style={{ cursor: "help", fontSize: 11 }} />
-                  </Tooltip>
-                )}
+                <HintLabel label={stat.label} hint={stat.hint} iconFontSize={11} />
               </div>
               <div
                 style={{

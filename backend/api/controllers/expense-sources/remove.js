@@ -1,26 +1,8 @@
+const CONFIG = {
+  Label: 'Fonte',
+  usageField: 'sourceId',
+};
+
 module.exports = async function remove(req, res) {
-  const groupId = await sails.services.groupservice.resolveGroupId(req);
-
-  if (!(await sails.services.groupservice.requireWrite(req, res, groupId))) {
-    return;
-  }
-
-  const source = await ExpenseSource.findOne({ id: req.params.id, groupId });
-
-  if (!source) {
-    return res.status(404).json({ message: 'Fonte não encontrada.' });
-  }
-
-  const expensesUsingSource = await Expense.count({
-    groupId,
-    sourceId: source.id,
-  });
-
-  if (expensesUsingSource > 0) {
-    return res.status(409).json({ message: 'Fonte em uso por lançamentos e não pode ser excluída.' });
-  }
-
-  await ExpenseSource.destroyOne({ id: source.id });
-
-  return res.json({ message: 'Fonte excluída.' });
+  return sails.services.taxonomyservice.remove(ExpenseSource, CONFIG, req, res);
 };

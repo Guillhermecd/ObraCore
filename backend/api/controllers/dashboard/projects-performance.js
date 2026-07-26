@@ -1,5 +1,5 @@
 module.exports = async function projectsPerformance(req, res) {
-  const groupIds = Array.isArray(req.userRecord.groupIds) ? req.userRecord.groupIds : [];
+  const groupIds = sails.services.groupservice.toArray(req.userRecord.groupIds);
 
   if (groupIds.length === 0) {
     return res.json([]);

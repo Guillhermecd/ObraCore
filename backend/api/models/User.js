@@ -34,9 +34,7 @@ module.exports = {
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {
     try {
-      const timestamp = sails.services.timeservice.nowIso();
-      valuesToSet.createdAt = timestamp;
-      valuesToSet.updatedAt = timestamp;
+      sails.services.timeservice.applyCreateTimestamps(valuesToSet);
       valuesToSet.email = valuesToSet.email.toLowerCase().trim();
       await hashPasswordIfNeeded(valuesToSet);
       return proceed();
@@ -47,7 +45,7 @@ module.exports = {
 
   beforeUpdate: async function beforeUpdate(valuesToSet, proceed) {
     try {
-      valuesToSet.updatedAt = sails.services.timeservice.nowIso();
+      sails.services.timeservice.applyUpdateTimestamp(valuesToSet);
       if (valuesToSet.email) {
         valuesToSet.email = valuesToSet.email.toLowerCase().trim();
       }

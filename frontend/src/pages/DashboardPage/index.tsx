@@ -32,6 +32,7 @@ import { SectionBlock } from "../../components/SectionBlock";
 import { GroupSelect } from "../../layouts/GroupSelect";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
+import { getErrorMessage } from "../../utils/errors";
 import { formatDate, formatMonth, plural } from "../../utils/format";
 import { usePrivacyFormat } from "../../privacyContext";
 import {
@@ -148,9 +149,7 @@ export function DashboardPage() {
     DashboardService.obra(activeGroupId, from, to)
       .then((response) => setObra(response))
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar dados.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar dados."));
       })
       .finally(() => setLoadedKey(requestKey));
   }, [messageApi, activeGroupId, from, to, requestKey]);
@@ -266,9 +265,7 @@ export function DashboardPage() {
 
       pdf.save("obra.pdf");
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao exportar dashboard.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao exportar dashboard."));
     } finally {
       setExportingPdf(false);
     }

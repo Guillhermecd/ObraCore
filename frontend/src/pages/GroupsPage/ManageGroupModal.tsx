@@ -28,6 +28,7 @@ import type {
 } from "../../api/modules/types";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivacyFormat } from "../../privacyContext";
+import { getErrorMessage } from "../../utils/errors";
 import {
   SITUACAO_OBRA_LABEL,
   TIPO_OBRA_LABEL,
@@ -135,9 +136,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
     GroupService.listMembers(group.id)
       .then((response) => setMembers(response.members))
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar membros.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar membros."));
       })
       .finally(() => setMembersLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,9 +165,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
       messageApi.success("Grupo atualizado.");
       onChanged();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao atualizar grupo.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao atualizar grupo."));
     }
   };
 
@@ -183,9 +180,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
       inviteForm.reset({ email: "", role: "FISCAL" });
       onChanged();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao enviar convite.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao enviar convite."));
     }
   };
 
@@ -208,9 +203,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
           item.id === member.id ? { ...item, role: previousRole } : item,
         ),
       );
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao alterar o papel.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao alterar o papel."));
     }
   };
 
@@ -221,9 +214,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
       messageApi.success("Colaborador removido.");
       onChanged();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao remover colaborador.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao remover colaborador."));
     }
   };
 
@@ -236,9 +227,7 @@ export function ManageGroupModal({ group, onClose, onChanged }: Props) {
       onChanged();
       onClose();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao excluir grupo.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao excluir grupo."));
     } finally {
       setDeleting(false);
     }

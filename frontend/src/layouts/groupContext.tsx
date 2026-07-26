@@ -6,6 +6,8 @@ export type GroupContextValue = {
   activeGroupId: string | null;
   activeGroup: Group | null;
   loading: boolean;
+  /** Falha ao carregar a lista de obras. Sem isto, erro de rede virava lista vazia. */
+  error: string | null;
   setActiveGroupId: (groupId: string) => void;
   refreshGroups: () => Promise<void>;
 };

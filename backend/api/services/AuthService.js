@@ -40,7 +40,7 @@ module.exports = {
 
   signToken(user) {
     return jwt.sign({ sub: user.id, email: user.email }, jwtSecret(), {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      expiresIn: process.env.JWT_EXPIRES_IN || '1h',
     });
   },
 

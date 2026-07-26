@@ -2,10 +2,6 @@ const bcrypt = require('bcrypt');
 
 const SALT_ROUNDS = 12;
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
 function isBcryptHash(value) {
   return typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
 }
@@ -38,9 +34,7 @@ module.exports = {
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {
     try {
-      const timestamp = nowIso();
-      valuesToSet.createdAt = timestamp;
-      valuesToSet.updatedAt = timestamp;
+      sails.services.timeservice.applyCreateTimestamps(valuesToSet);
       valuesToSet.email = valuesToSet.email.toLowerCase().trim();
       await hashPasswordIfNeeded(valuesToSet);
       return proceed();
@@ -51,7 +45,7 @@ module.exports = {
 
   beforeUpdate: async function beforeUpdate(valuesToSet, proceed) {
     try {
-      valuesToSet.updatedAt = nowIso();
+      sails.services.timeservice.applyUpdateTimestamp(valuesToSet);
       if (valuesToSet.email) {
         valuesToSet.email = valuesToSet.email.toLowerCase().trim();
       }

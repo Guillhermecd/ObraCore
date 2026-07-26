@@ -6,12 +6,14 @@ import { GroupsPage } from "./pages/GroupsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { StatusPage } from "./pages/StatusPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { VisaoGeralPage } from "./pages/VisaoGeralPage";
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/dashboard" replace />,
+    element: <Navigate to="/obra" replace />,
   },
   {
     path: "/login",
@@ -29,7 +31,15 @@ export const router = createBrowserRouter([
     element: <PrivateLayout />,
     children: [
       {
-        path: "/dashboard",
+        path: "/consolidado",
+        element: <VisaoGeralPage />,
+      },
+      {
+        path: "/status",
+        element: <StatusPage />,
+      },
+      {
+        path: "/obra",
         element: <DashboardPage />,
       },
       {

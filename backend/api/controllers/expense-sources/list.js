@@ -1,6 +1,5 @@
-module.exports = async function list(req, res) {
-  const groupId = await sails.services.groupservice.resolveGroupId(req);
-  const sources = await ExpenseSource.find({ groupId }).sort('name ASC');
+const CONFIG = { listKey: 'sources' };
 
-  return res.json({ sources });
+module.exports = async function list(req, res) {
+  return sails.services.taxonomyservice.list(ExpenseSource, CONFIG, req, res);
 };

@@ -1,20 +1,7 @@
 const fs = require('fs');
 
-function uploadFile(req) {
-  return new Promise((resolve, reject) => {
-    req.file('file').upload({ maxBytes: 5 * 1024 * 1024 }, (error, files) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve(files[0]);
-    });
-  });
-}
-
 module.exports = async function importCommit(req, res) {
-  const file = await uploadFile(req);
+  const file = await sails.services.storageservice.receiveUploadedFile(req);
 
   if (!file) {
     return res.badRequest({ message: 'Arquivo obrigatório.' });
@@ -34,6 +21,11 @@ module.exports = async function importCommit(req, res) {
     }
 
     const groupId = await sails.services.groupservice.resolveGroupId(req);
+
+    if (!(await sails.services.groupservice.requireWrite(req, res, groupId))) {
+      return;
+    }
+
     const [categories, sources] = await Promise.all([
       ExpenseCategory.find({ groupId }),
       ExpenseSource.find({ groupId }),

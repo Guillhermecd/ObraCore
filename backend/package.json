@@ -35,6 +35,7 @@
   "scripts": {
     "start": "NODE_ENV=production node app.js",
     "dev": "nodemon app.js",
+    "test": "node --test test/*.test.js",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

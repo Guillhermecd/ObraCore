@@ -1,12 +1,17 @@
-import { Button, Form, Input, InputNumber, Modal, message } from "antd";
-import { Controller, useForm } from "react-hook-form";
+import { Button, Form, Input, InputNumber, Modal, Select, message } from "antd";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { GroupService } from "../../api/modules/GroupService";
-import type { Group } from "../../api/modules/types";
+import type { Group, TipoObra } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
+import { TIPO_OBRA_LABEL, valorEsperadoLabel } from "../../utils/obra";
 
 type CreateGroupForm = {
   name: string;
   description: string;
   plannedSpending: number;
+  tipoObra: TipoObra;
+  valorContrato: number | null;
+  valorVendaEsperada: number | null;
 };
 
 type Props = {
@@ -23,8 +28,18 @@ export function CreateGroupModal({ open, onClose, onCreated }: Props) {
     reset,
     formState: { errors, isSubmitting },
   } = useForm<CreateGroupForm>({
-    defaultValues: { name: "", description: "", plannedSpending: 0 },
+    defaultValues: {
+      name: "",
+      description: "",
+      plannedSpending: 0,
+      tipoObra: "PROPRIA",
+      valorContrato: null,
+      valorVendaEsperada: null,
+    },
   });
+
+  const tipoObra = useWatch({ control, name: "tipoObra" });
+  const isCliente = tipoObra === "CLIENTE";
 
   const close = () => {
     reset();
@@ -37,14 +52,15 @@ export function CreateGroupModal({ open, onClose, onCreated }: Props) {
         name: values.name,
         description: values.description.trim() || undefined,
         plannedSpending: values.plannedSpending,
+        tipoObra: values.tipoObra,
+        valorContrato: values.tipoObra === "CLIENTE" ? values.valorContrato : null,
+        valorVendaEsperada: values.tipoObra === "PROPRIA" ? values.valorVendaEsperada : null,
       });
       messageApi.success("Grupo criado.");
       onCreated(response.group);
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao criar grupo.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao criar grupo."));
     }
   };
 
@@ -85,6 +101,70 @@ export function CreateGroupModal({ open, onClose, onCreated }: Props) {
             </Form.Item>
           )}
         />
+        <Controller
+          name="tipoObra"
+          control={control}
+          render={({ field }) => (
+            <Form.Item
+              label="Tipo de obra"
+              help="Obra de cliente tem contrato, receita e lucro reconhecidos. Obra própria é financiada por aporte de capital, mas também pode ter um valor de venda esperado, pra estimar lucro."
+            >
+              <Select
+                {...field}
+                options={[
+                  { value: "PROPRIA", label: TIPO_OBRA_LABEL.PROPRIA },
+                  { value: "CLIENTE", label: TIPO_OBRA_LABEL.CLIENTE },
+                ]}
+              />
+            </Form.Item>
+          )}
+        />
+        {isCliente ? (
+          <Controller
+            name="valorContrato"
+            control={control}
+            render={({ field }) => (
+              <Form.Item label={valorEsperadoLabel("CLIENTE")}>
+                <InputNumber
+                  {...field}
+                  value={field.value ?? undefined}
+                  onChange={(value) => field.onChange(value ?? null)}
+                  style={{ width: "100%" }}
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  decimalSeparator=","
+                  prefix="R$"
+                  placeholder="Pode ser informado depois"
+                />
+              </Form.Item>
+            )}
+          />
+        ) : (
+          <Controller
+            name="valorVendaEsperada"
+            control={control}
+            render={({ field }) => (
+              <Form.Item
+                label={valorEsperadoLabel("PROPRIA")}
+                help="Opcional. Informado, já dá uma previsão de lucro (venda esperada − orçamento) desde já."
+              >
+                <InputNumber
+                  {...field}
+                  value={field.value ?? undefined}
+                  onChange={(value) => field.onChange(value ?? null)}
+                  style={{ width: "100%" }}
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  decimalSeparator=","
+                  prefix="R$"
+                  placeholder="Pode ser informado depois"
+                />
+              </Form.Item>
+            )}
+          />
+        )}
         <Controller
           name="plannedSpending"
           control={control}

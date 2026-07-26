@@ -1,9 +1,10 @@
 import { api } from "./api";
-import type { ExpenseCategory, MessageResponse } from "./types";
+import type { ExpenseCategory, ExpenseCategoryTipo } from "./types";
 
-export type CreateExpenseCategoryPayload = {
+type CreateExpenseCategoryPayload = {
   name: string;
   color?: string;
+  tipo?: ExpenseCategoryTipo;
 };
 
 type ExpenseCategoryListResponse = {
@@ -22,11 +23,6 @@ export const ExpenseCategoryService = {
     return api<ExpenseCategoryResponse>("/expense-categories", {
       method: "POST",
       body: JSON.stringify(payload),
-    });
-  },
-  remove(id: string) {
-    return api<MessageResponse>(`/expense-categories/${id}`, {
-      method: "DELETE",
     });
   },
 };

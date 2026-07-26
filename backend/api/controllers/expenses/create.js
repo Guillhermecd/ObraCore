@@ -1,5 +1,16 @@
 module.exports = async function create(req, res) {
-  const { date, categoryId, sourceId, supplier, paymentMethod, amount, notes } = req.body;
+  const {
+    date,
+    categoryId,
+    sourceId,
+    supplier,
+    paymentMethod,
+    amount,
+    notes,
+    tipo,
+    dataPrevista,
+    dataRealizada,
+  } = req.body;
 
   if (!date || !categoryId || !sourceId || !paymentMethod || amount === undefined || amount === null) {
     return res.badRequest({
@@ -16,7 +27,16 @@ module.exports = async function create(req, res) {
     return res.badRequest({ message: 'Forma de pagamento inválida.' });
   }
 
+  const normalizedTipo = tipo || 'SAIDA';
+  if (!['ENTRADA', 'SAIDA'].includes(normalizedTipo)) {
+    return res.badRequest({ message: 'Tipo inválido.' });
+  }
+
   const groupId = await sails.services.groupservice.resolveGroupId(req);
+
+  if (!(await sails.services.groupservice.requireWrite(req, res, groupId))) {
+    return;
+  }
 
   const category = await ExpenseCategory.findOne({ id: categoryId, groupId });
   if (!category) {
@@ -38,6 +58,9 @@ module.exports = async function create(req, res) {
     notes: notes ? notes.trim() : null,
     owner: req.user.id,
     groupId,
+    tipo: normalizedTipo,
+    dataPrevista: dataPrevista || null,
+    dataRealizada: dataRealizada || null,
   }).fetch();
 
   return res.status(201).json({ expense });

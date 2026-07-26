@@ -17,6 +17,7 @@ import {
   theme,
   type TableColumnsType,
 } from "antd";
+import type { FilterValue } from "antd/es/table/interface";
 import dayjs from "dayjs";
 import type { CSSProperties, Key } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -28,9 +29,21 @@ import type {
   ExpenseCategory,
   ExpenseSource,
 } from "../../api/modules/types";
+import { PAYMENT_METHODS } from "../../api/modules/types";
+import {
+  dateRangeFilter,
+  matchesDateRange,
+  matchesNumberRange,
+  matchesText,
+  numberRangeFilter,
+  textFilter,
+} from "../../components/tableFilters";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
-import { formatCurrency } from "../../utils/format";
+import { getErrorMessage } from "../../utils/errors";
+import { formatDate, plural } from "../../utils/format";
+import { usePrivacyFormat } from "../../privacyContext";
+import { usePermissions } from "../../layouts/usePermissions";
 import { ExpenseDetailModal } from "./ExpenseDetailModal";
 import { ExpenseFormModal } from "./ExpenseFormModal";
 import { ImportExpensesModal } from "./ImportExpensesModal";
@@ -51,6 +64,8 @@ const pageHeaderRowStyle: CSSProperties = {
 
 export function ControlePage() {
   const { token } = theme.useToken();
+  const { formatCurrency } = usePrivacyFormat();
+  const { canWrite } = usePermissions();
   const pageTitleStyle: CSSProperties = {
     margin: 0,
     color: token.colorTextHeading,
@@ -75,6 +90,16 @@ export function ControlePage() {
     borderRadius: 8,
   };
 
+  const filterBarStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+    fontSize: 13,
+    color: token.colorTextSecondary,
+  };
+
   const screens = Grid.useBreakpoint();
   const isDesktop = Boolean(screens.md);
   usePrivateMobileHeader("Controle");
@@ -94,6 +119,16 @@ export function ControlePage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  // Filtros controlados: sem isso não há como zerar todas as colunas de uma
+  // vez nem saber quantos lançamentos sobraram do recorte.
+  const [filters, setFilters] = useState<Record<string, FilterValue | null>>(
+    {},
+  );
+  const [filteredCount, setFilteredCount] = useState<number | null>(null);
+  const hasFilters = Object.values(filters).some(
+    (value) => value !== null && value !== undefined && value.length > 0,
+  );
+
   useEffect(() => {
     if (!activeGroupId) {
       return;
@@ -110,9 +145,7 @@ export function ControlePage() {
         setExpenses(expensesResponse.expenses);
       })
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar dados.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar dados."));
       })
       .finally(() => setLoading(false));
   }, [messageApi, refreshKey, activeGroupId]);
@@ -133,9 +166,7 @@ export function ControlePage() {
     try {
       await ExpenseService.exportXlsx();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao exportar planilha.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao exportar planilha."));
     } finally {
       setExporting(false);
     }
@@ -164,13 +195,31 @@ export function ControlePage() {
     refresh();
   };
 
+  // Formas de pagamento realmente presentes nos lançamentos, unidas às
+  // padrão: planilha importada pode trazer valor fora da lista, e ele
+  // precisa ser filtrável do mesmo jeito.
+  const paymentMethodOptions = useMemo(() => {
+    const values = new Set<string>(PAYMENT_METHODS);
+    expenses.forEach((expense) => {
+      if (expense.paymentMethod) {
+        values.add(expense.paymentMethod);
+      }
+    });
+    return Array.from(values)
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map((value) => ({ text: value, value }));
+  }, [expenses]);
+
   const columns: TableColumnsType<Expense> = [
     {
       title: "Data",
       dataIndex: "date",
       key: "date",
       sorter: (a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf(),
-      render: (value: string) => dayjs(value).format("DD/MM/YYYY"),
+      render: (value: string) => formatDate(value),
+      ...dateRangeFilter(),
+      filteredValue: filters.date ?? null,
+      onFilter: (value, record) => matchesDateRange(record.date, value),
     },
     {
       title: "Categoria",
@@ -184,23 +233,43 @@ export function ControlePage() {
           "-"
         );
       },
+      filters: categories.map((category) => ({
+        text: category.name,
+        value: category.id,
+      })),
+      filterSearch: true,
+      filteredValue: filters.categoryId ?? null,
+      onFilter: (value, record) => record.categoryId === value,
     },
     {
       title: "Fonte",
       dataIndex: "sourceId",
       key: "sourceId",
       render: (value: string) => sourceMap.get(value)?.name || "-",
+      filters: sources.map((source) => ({
+        text: source.name,
+        value: source.id,
+      })),
+      filterSearch: true,
+      filteredValue: filters.sourceId ?? null,
+      onFilter: (value, record) => record.sourceId === value,
     },
     {
       title: "Fornecedor",
       dataIndex: "supplier",
       key: "supplier",
       render: (value: string | null) => value || "-",
+      ...textFilter("Buscar fornecedor"),
+      filteredValue: filters.supplier ?? null,
+      onFilter: (value, record) => matchesText(record.supplier, value),
     },
     {
       title: "Forma de pagamento",
       dataIndex: "paymentMethod",
       key: "paymentMethod",
+      filters: paymentMethodOptions,
+      filteredValue: filters.paymentMethod ?? null,
+      onFilter: (value, record) => record.paymentMethod === value,
     },
     {
       title: "Valor",
@@ -208,12 +277,25 @@ export function ControlePage() {
       key: "amount",
       sorter: (a, b) => a.amount - b.amount,
       render: (value: number) => formatCurrency(value),
+      ...numberRangeFilter(),
+      filteredValue: filters.amount ?? null,
+      onFilter: (value, record) => matchesNumberRange(record.amount, value),
     },
     {
-      title: "Observações",
-      dataIndex: "notes",
-      key: "notes",
-      render: (value: string | null) => value || "-",
+      title: "Status",
+      key: "status",
+      render: (_value: unknown, record: Expense) => (
+        <Tag color={record.dataRealizada ? "success" : "processing"}>
+          {record.dataRealizada ? "Pago" : "Previsto"}
+        </Tag>
+      ),
+      filters: [
+        { text: "Pago", value: "pago" },
+        { text: "Previsto", value: "previsto" },
+      ],
+      filteredValue: filters.status ?? null,
+      onFilter: (value, record) =>
+        (record.dataRealizada ? "pago" : "previsto") === value,
     },
   ];
 
@@ -230,19 +312,24 @@ export function ControlePage() {
           </div>
         )}
         <Space wrap>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setFormModalState({ mode: "create" })}
-          >
-            Novo lançamento
-          </Button>
-          <Button
-            icon={<UploadOutlined />}
-            onClick={() => setImportModalOpen(true)}
-          >
-            Importar planilha
-          </Button>
+          {canWrite && (
+            <>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setFormModalState({ mode: "create" })}
+              >
+                Novo lançamento
+              </Button>
+              <Button
+                icon={<UploadOutlined />}
+                onClick={() => setImportModalOpen(true)}
+              >
+                Importar planilha
+              </Button>
+            </>
+          )}
+          {/* Exportar é leitura: continua liberado para o fiscal. */}
           <Button
             icon={<DownloadOutlined />}
             onClick={exportXlsx}
@@ -258,7 +345,7 @@ export function ControlePage() {
           <Empty description="Nenhum lançamento cadastrado." />
         ) : (
           <>
-            {selectedRowKeys.length > 0 && (
+            {canWrite && selectedRowKeys.length > 0 && (
               <div style={bulkActionBarStyle}>
                 <span>{selectedRowKeys.length} selecionado(s)</span>
                 <Popconfirm
@@ -278,17 +365,44 @@ export function ControlePage() {
                 </Popconfirm>
               </div>
             )}
+            {hasFilters && (
+              <div style={filterBarStyle}>
+                <span>
+                  {filteredCount === null
+                    ? null
+                    : `${plural(filteredCount, "lançamento", "lançamentos")} no filtro`}
+                </span>
+                <Button size="small" onClick={() => setFilters({})}>
+                  Limpar filtros
+                </Button>
+              </div>
+            )}
             <Table
               rowKey="id"
               columns={columns}
               dataSource={expenses}
               scroll={{ x: true }}
-              pagination={{ pageSize: 10, showSizeChanger: false }}
-              rowSelection={{
-                selectedRowKeys,
-                onChange: setSelectedRowKeys,
-                preserveSelectedRowKeys: true,
+              onChange={(_pagination, nextFilters, _sorter, extra) => {
+                setFilters(nextFilters);
+                setFilteredCount(extra.currentDataSource.length);
               }}
+              locale={{
+                emptyText: (
+                  <Empty description="Nenhum lançamento corresponde aos filtros." />
+                ),
+              }}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              // Seleção existe só para a exclusão em massa: sem permissão de
+              // escrita, as checkboxes não levariam a lugar nenhum.
+              rowSelection={
+                canWrite
+                  ? {
+                      selectedRowKeys,
+                      onChange: setSelectedRowKeys,
+                      preserveSelectedRowKeys: true,
+                    }
+                  : undefined
+              }
               onRow={(record) => ({
                 onClick: () => setDetailExpense(record),
                 style: { cursor: "pointer" },

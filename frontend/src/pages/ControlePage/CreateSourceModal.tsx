@@ -1,7 +1,8 @@
-import { Button, Form, Input, Modal, message } from "antd";
+import { Button, Form, Input, Modal, Tag, message } from "antd";
 import { Controller, useForm } from "react-hook-form";
 import { ExpenseSourceService } from "../../api/modules/ExpenseSourceService";
-import type { ExpenseSource } from "../../api/modules/types";
+import type { ExpenseSource, ExpenseTipo } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 
 type CreateSourceForm = {
   name: string;
@@ -9,11 +10,12 @@ type CreateSourceForm = {
 
 type Props = {
   open: boolean;
+  tipo: ExpenseTipo;
   onClose: () => void;
   onCreated: (source: ExpenseSource) => void;
 };
 
-export function CreateSourceModal({ open, onClose, onCreated }: Props) {
+export function CreateSourceModal({ open, tipo, onClose, onCreated }: Props) {
   const [messageApi, contextHolder] = message.useMessage();
   const {
     control,
@@ -31,14 +33,12 @@ export function CreateSourceModal({ open, onClose, onCreated }: Props) {
 
   const submit = async (values: CreateSourceForm) => {
     try {
-      const response = await ExpenseSourceService.create(values);
+      const response = await ExpenseSourceService.create({ ...values, tipo });
       messageApi.success("Fonte criada.");
       onCreated(response.source);
       close();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao criar fonte.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao criar fonte."));
     }
   };
 
@@ -52,6 +52,11 @@ export function CreateSourceModal({ open, onClose, onCreated }: Props) {
     >
       {contextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
+        <Form.Item label="Tipo">
+          <Tag color={tipo === "ENTRADA" ? "success" : "default"}>
+            {tipo === "ENTRADA" ? "Entrada" : "Saída"}
+          </Tag>
+        </Form.Item>
         <Controller
           name="name"
           control={control}

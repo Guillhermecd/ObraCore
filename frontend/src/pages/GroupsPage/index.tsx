@@ -17,6 +17,8 @@ import { GroupInviteService } from "../../api/modules/GroupInviteService";
 import type { ReceivedGroupInvite, SentGroupInvite } from "../../api/modules/types";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
+import { getErrorMessage } from "../../utils/errors";
+import { GROUP_ROLE_LABEL, permissionsFor } from "../../utils/roles";
 import { CreateGroupModal } from "./CreateGroupModal";
 import { ManageGroupModal } from "./ManageGroupModal";
 
@@ -77,9 +79,7 @@ export function GroupsPage() {
         setReceivedInvites(receivedResponse.invites);
       })
       .catch((error: unknown) => {
-        messageApi.error(
-          error instanceof Error ? error.message : "Erro ao carregar convites.",
-        );
+        messageApi.error(getErrorMessage(error, "Erro ao carregar convites."));
       })
       .finally(() => setInvitesLoading(false));
   };
@@ -91,41 +91,44 @@ export function GroupsPage() {
     setRefreshKey((key) => key + 1);
   };
 
-  const acceptInvite = async (invite: ReceivedGroupInvite) => {
+  /**
+   * As três ações de convite (aceitar/recusar/cancelar) só diferem na chamada
+   * ao service e na mensagem de sucesso — erro e refresh são idênticos.
+   */
+  const runInviteAction = async (
+    action: () => Promise<unknown>,
+    onSuccess: () => void,
+    fallbackError: string,
+  ) => {
     try {
-      await GroupInviteService.accept(invite.id);
-      messageApi.success(`Você agora participa de "${invite.groupName}".`);
+      await action();
+      onSuccess();
       refreshAll();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao aceitar convite.",
-      );
+      messageApi.error(getErrorMessage(error, fallbackError));
     }
   };
 
-  const declineInvite = async (invite: ReceivedGroupInvite) => {
-    try {
-      await GroupInviteService.decline(invite.id);
-      messageApi.info("Convite recusado.");
-      refreshAll();
-    } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao recusar convite.",
-      );
-    }
-  };
+  const acceptInvite = (invite: ReceivedGroupInvite) =>
+    runInviteAction(
+      () => GroupInviteService.accept(invite.id),
+      () => messageApi.success(`Você agora participa de "${invite.groupName}".`),
+      "Erro ao aceitar convite.",
+    );
 
-  const cancelInvite = async (invite: SentGroupInvite) => {
-    try {
-      await GroupInviteService.cancel(invite.id);
-      messageApi.info("Convite cancelado.");
-      refreshAll();
-    } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao cancelar convite.",
-      );
-    }
-  };
+  const declineInvite = (invite: ReceivedGroupInvite) =>
+    runInviteAction(
+      () => GroupInviteService.decline(invite.id),
+      () => messageApi.info("Convite recusado."),
+      "Erro ao recusar convite.",
+    );
+
+  const cancelInvite = (invite: SentGroupInvite) =>
+    runInviteAction(
+      () => GroupInviteService.cancel(invite.id),
+      () => messageApi.info("Convite cancelado."),
+      "Erro ao cancelar convite.",
+    );
 
   return (
     <section>
@@ -167,7 +170,9 @@ export function GroupsPage() {
               );
             }
 
-            if (group.isOwner) {
+            // Admin também gerencia (colaboradores e convites); o que é só do
+            // dono fica escondido dentro do modal.
+            if (permissionsFor(group.myRole).canManageMembers) {
               actions.push(
                 <Button
                   key="manage"
@@ -189,7 +194,9 @@ export function GroupsPage() {
                       {group.id === activeGroupId && (
                         <Tag color="blue">Ativo</Tag>
                       )}
-                      {group.isOwner && <Tag color="gold">Dono</Tag>}
+                      <Tag color={group.myRole === "MASTER" ? "gold" : "default"}>
+                        {GROUP_ROLE_LABEL[group.myRole]}
+                      </Tag>
                     </Space>
                   }
                   description={
@@ -235,7 +242,7 @@ export function GroupsPage() {
                 >
                   <List.Item.Meta
                     title={invite.groupName}
-                    description={invite.inviteeEmail}
+                    description={`${invite.inviteeEmail} · como ${GROUP_ROLE_LABEL[invite.role]}`}
                   />
                 </List.Item>
               )}
@@ -272,7 +279,7 @@ export function GroupsPage() {
                 >
                   <List.Item.Meta
                     title={invite.groupName}
-                    description={`Convidado por ${invite.inviterName}`}
+                    description={`Convidado por ${invite.inviterName} · como ${GROUP_ROLE_LABEL[invite.role]}`}
                   />
                 </List.Item>
               )}

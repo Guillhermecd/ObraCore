@@ -1,6 +1,5 @@
 import { PaperClipOutlined } from "@ant-design/icons";
 import { Button, Modal, Popconfirm, Tag, Typography, message, theme } from "antd";
-import dayjs from "dayjs";
 import type { CSSProperties } from "react";
 import { ExpenseService } from "../../api/modules/ExpenseService";
 import type {
@@ -8,7 +7,10 @@ import type {
   ExpenseCategory,
   ExpenseSource,
 } from "../../api/modules/types";
-import { formatCurrency } from "../../utils/format";
+import { getErrorMessage } from "../../utils/errors";
+import { formatDate } from "../../utils/format";
+import { usePrivacyFormat } from "../../privacyContext";
+import { usePermissions } from "../../layouts/usePermissions";
 
 const { Text } = Typography;
 
@@ -35,6 +37,8 @@ export function ExpenseDetailModal({
   onDeleted,
 }: Props) {
   const { token } = theme.useToken();
+  const { formatCurrency } = usePrivacyFormat();
+  const { canWrite } = usePermissions();
   const [messageApi, contextHolder] = message.useMessage();
 
   if (!expense) {
@@ -64,9 +68,7 @@ export function ExpenseDetailModal({
       messageApi.success("Lançamento excluído.");
       onDeleted();
     } catch (error) {
-      messageApi.error(
-        error instanceof Error ? error.message : "Erro ao excluir lançamento.",
-      );
+      messageApi.error(getErrorMessage(error, "Erro ao excluir lançamento."));
     }
   };
 
@@ -76,28 +78,34 @@ export function ExpenseDetailModal({
       open
       onCancel={onClose}
       destroyOnHidden
-      footer={[
-        <Popconfirm
-          key="delete"
-          title="Excluir lançamento?"
-          okText="Excluir"
-          cancelText="Cancelar"
-          okButtonProps={{ danger: true }}
-          onConfirm={remove}
-        >
-          <Button danger>Excluir</Button>
-        </Popconfirm>,
-        <Button key="edit" type="primary" onClick={() => onEdit(expense)}>
-          Editar
-        </Button>,
-      ]}
+      // Fiscal abre o detalhe para consultar, mas sem as ações — o modal vira
+      // só leitura.
+      footer={
+        canWrite
+          ? [
+              <Popconfirm
+                key="delete"
+                title="Excluir lançamento?"
+                okText="Excluir"
+                cancelText="Cancelar"
+                okButtonProps={{ danger: true }}
+                onConfirm={remove}
+              >
+                <Button danger>Excluir</Button>
+              </Popconfirm>,
+              <Button key="edit" type="primary" onClick={() => onEdit(expense)}>
+                Editar
+              </Button>,
+            ]
+          : null
+      }
     >
       {contextHolder}
       <div style={rowStyle}>
         <Text style={labelStyle} type="secondary">
           Data
         </Text>
-        <div style={valueStyle}>{dayjs(expense.date).format("DD/MM/YYYY")}</div>
+        <div style={valueStyle}>{formatDate(expense.date)}</div>
       </div>
       <div style={rowStyle}>
         <Text style={labelStyle} type="secondary">

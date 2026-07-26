@@ -5,7 +5,7 @@ module.exports = async function remove(req, res) {
     return res.status(404).json({ message: 'Grupo não encontrado.' });
   }
 
-  if (group.owner !== req.user.id) {
+  if (!sails.services.groupservice.can(group, req.user.id, 'deleteGroup')) {
     return res.status(403).json({ message: 'Apenas o criador do grupo pode excluí-lo.' });
   }
 

@@ -1,7 +1,3 @@
-function nowIso() {
-  return new Date().toISOString();
-}
-
 module.exports = {
   tableName: 'expenses',
 
@@ -16,13 +12,17 @@ module.exports = {
     comprovante: { type: 'json' },
     owner: { type: 'string', required: true },
     groupId: { type: 'string', required: true },
+
+    // Caixa consolidado (aditivo): tipo do lançamento e datas prevista/realizada.
+    // `date` é mantido por compatibilidade até a migração ser validada (ver backfill).
+    tipo: { type: 'string', isIn: ['ENTRADA', 'SAIDA'], defaultsTo: 'SAIDA' },
+    dataPrevista: { type: 'string', allowNull: true },
+    dataRealizada: { type: 'string', allowNull: true },
   },
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {
     try {
-      const timestamp = nowIso();
-      valuesToSet.createdAt = timestamp;
-      valuesToSet.updatedAt = timestamp;
+      sails.services.timeservice.applyCreateTimestamps(valuesToSet);
       return proceed();
     } catch (error) {
       return proceed(error);
@@ -31,7 +31,7 @@ module.exports = {
 
   beforeUpdate: async function beforeUpdate(valuesToSet, proceed) {
     try {
-      valuesToSet.updatedAt = nowIso();
+      sails.services.timeservice.applyUpdateTimestamp(valuesToSet);
       return proceed();
     } catch (error) {
       return proceed(error);

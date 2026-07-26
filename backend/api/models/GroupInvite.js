@@ -1,7 +1,3 @@
-function nowIso() {
-  return new Date().toISOString();
-}
-
 module.exports = {
   tableName: 'group_invites',
 
@@ -11,13 +7,15 @@ module.exports = {
     inviteeId: { type: 'string', required: true },
     inviteeEmail: { type: 'string', required: true },
     status: { type: 'string', isIn: ['pending', 'accepted', 'declined', 'cancelled'], defaultsTo: 'pending' },
+
+    // Papel com que o convidado entra ao aceitar. Convites pendentes criados
+    // antes deste campo não o têm — quem lê deve cair para FISCAL.
+    role: { type: 'string', isIn: ['ADMIN', 'FISCAL'], defaultsTo: 'FISCAL' },
   },
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {
     try {
-      const timestamp = nowIso();
-      valuesToSet.createdAt = timestamp;
-      valuesToSet.updatedAt = timestamp;
+      sails.services.timeservice.applyCreateTimestamps(valuesToSet);
       return proceed();
     } catch (error) {
       return proceed(error);
@@ -26,7 +24,7 @@ module.exports = {
 
   beforeUpdate: async function beforeUpdate(valuesToSet, proceed) {
     try {
-      valuesToSet.updatedAt = nowIso();
+      sails.services.timeservice.applyUpdateTimestamp(valuesToSet);
       return proceed();
     } catch (error) {
       return proceed(error);

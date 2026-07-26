@@ -1,13 +1,15 @@
 import { api } from "./api";
 import type {
+  AssignableGroupRole,
   MessageResponse,
   ReceivedGroupInvite,
   SentGroupInvite,
 } from "./types";
 
-export type SendGroupInvitePayload = {
+type SendGroupInvitePayload = {
   groupId: string;
   email: string;
+  role: AssignableGroupRole;
 };
 
 type SentInvitesResponse = {

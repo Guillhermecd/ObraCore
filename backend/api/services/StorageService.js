@@ -34,8 +34,29 @@ function storageConfig() {
   };
 }
 
+const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
 module.exports = {
   config: storageConfig,
+
+  /**
+   * Recebe o upload de um único campo `file` do Skipper (parser de upload do
+   * Sails), devolvendo o arquivo (ou `undefined` se nenhum foi enviado).
+   * Fonte única — antes copiada idêntica em cada controller que recebe
+   * arquivo (import, comprovante, foto de perfil).
+   */
+  receiveUploadedFile(req, { maxBytes = DEFAULT_MAX_UPLOAD_BYTES } = {}) {
+    return new Promise((resolve, reject) => {
+      req.file('file').upload({ maxBytes }, (error, files) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(files[0]);
+      });
+    });
+  },
 
   client() {
     const config = storageConfig();
@@ -96,33 +117,5 @@ module.exports = {
       }),
       { expiresIn: config.presignedExpiresIn },
     );
-  },
-
-  /**
-   * Recebe o upload de um único arquivo (campo `file`) do request multipart,
-   * gravando-o em disco temporário via Skipper. Resolve com o descritor do
-   * arquivo (`{ fd, filename, type, ... }`) ou `undefined` se nada foi enviado.
-   */
-  receiveUpload(req, { maxBytes = 5 * 1024 * 1024 } = {}) {
-    return new Promise((resolve, reject) => {
-      req.file('file').upload({ maxBytes }, (error, files) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve(files[0]);
-      });
-    });
-  },
-
-  /**
-   * Remove o arquivo temporário criado por `receiveUpload`. Sempre chamar no
-   * `finally` do controller depois de processar o upload.
-   */
-  cleanupUpload(file) {
-    if (file?.fd) {
-      fs.unlink(file.fd, () => undefined);
-    }
   },
 };

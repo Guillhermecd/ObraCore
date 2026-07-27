@@ -2,8 +2,12 @@ const bcrypt = require('bcrypt');
 
 const SALT_ROUNDS = 12;
 
+function isBcryptHash(value) {
+  return typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
+}
+
 async function hashPasswordIfNeeded(valuesToSet) {
-  if (valuesToSet.password) {
+  if (valuesToSet.password && !isBcryptHash(valuesToSet.password)) {
     valuesToSet.password = await bcrypt.hash(valuesToSet.password, SALT_ROUNDS);
   }
 }
@@ -21,7 +25,7 @@ module.exports = {
     emailVerificationExpiresAt: { type: 'string', allowNull: true },
     passwordResetToken: { type: 'string', allowNull: true },
     passwordResetExpiresAt: { type: 'string', allowNull: true },
-    memberships: { collection: 'groupmember', via: 'user' },
+    groupIds: { type: 'json', defaultsTo: [] },
   },
 
   customToJSON() {
@@ -30,7 +34,8 @@ module.exports = {
 
   beforeCreate: async function beforeCreate(valuesToSet, proceed) {
     try {
-      valuesToSet.email = sails.services.authservice.normalizeEmail(valuesToSet.email);
+      sails.services.timeservice.applyCreateTimestamps(valuesToSet);
+      valuesToSet.email = valuesToSet.email.toLowerCase().trim();
       await hashPasswordIfNeeded(valuesToSet);
       return proceed();
     } catch (error) {
@@ -40,8 +45,9 @@ module.exports = {
 
   beforeUpdate: async function beforeUpdate(valuesToSet, proceed) {
     try {
+      sails.services.timeservice.applyUpdateTimestamp(valuesToSet);
       if (valuesToSet.email) {
-        valuesToSet.email = sails.services.authservice.normalizeEmail(valuesToSet.email);
+        valuesToSet.email = valuesToSet.email.toLowerCase().trim();
       }
       await hashPasswordIfNeeded(valuesToSet);
       return proceed();

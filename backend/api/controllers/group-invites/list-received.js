@@ -16,6 +16,7 @@ module.exports = async function listReceived(req, res) {
         groupId: invite.groupId,
         groupName: groupById.get(invite.groupId)?.name || 'Grupo removido',
         inviterName: (inviter && (inviter.name || inviter.email)) || 'Usuário',
+        role: invite.role || 'FISCAL',
         status: invite.status,
         createdAt: invite.createdAt,
       };

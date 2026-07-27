@@ -21,10 +21,6 @@ function jwtSecret() {
 module.exports = {
   passwordResetMessage: PASSWORD_RESET_MESSAGE,
 
-  normalizeEmail(email) {
-    return email.toLowerCase().trim();
-  },
-
   sanitizeUser(user) {
     if (!user) {
       return null;
@@ -36,6 +32,7 @@ module.exports = {
       emailValidated: user.emailValidated,
       name: user.name || null,
       profileImage: user.profileImage || null,
+      groupIds: Array.isArray(user.groupIds) ? user.groupIds : [],
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -43,7 +40,7 @@ module.exports = {
 
   signToken(user) {
     return jwt.sign({ sub: user.id, email: user.email }, jwtSecret(), {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      expiresIn: process.env.JWT_EXPIRES_IN || '1h',
     });
   },
 
@@ -80,7 +77,7 @@ module.exports = {
       return;
     }
 
-    const normalizedEmail = this.normalizeEmail(email);
+    const normalizedEmail = email.toLowerCase().trim();
     const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {

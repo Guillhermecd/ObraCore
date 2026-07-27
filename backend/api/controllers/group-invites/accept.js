@@ -12,7 +12,9 @@ module.exports = async function accept(req, res) {
     return res.status(404).json({ message: 'Grupo não encontrado.' });
   }
 
-  await sails.services.groupservice.addMember(group, req.userRecord);
+  // Convites pendentes criados antes do campo `role` não o têm — FISCAL é o
+  // padrão seguro para eles.
+  await sails.services.groupservice.addMember(group, req.userRecord, invite.role || 'FISCAL');
   await GroupInvite.updateOne({ id: invite.id }).set({ status: 'accepted' });
 
   return res.json({ message: 'Convite aceito.' });

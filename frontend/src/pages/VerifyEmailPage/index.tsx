@@ -1,25 +1,12 @@
 import { Button, Card, Result } from "antd";
-import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthService } from "../../api/modules/AuthService";
 import { authStorage } from "../../api/modules/api";
+import { authPageStyle, authPanelStyle } from "../../components/layout";
 import { getErrorMessage } from "../../utils/errors";
 
 type Status = "loading" | "success" | "error";
-
-const pageStyle: CSSProperties = {
-  minHeight: "100vh",
-  display: "grid",
-  placeItems: "center",
-  padding: 24,
-  background: "#F4F6F8",
-};
-
-const panelStyle: CSSProperties = {
-  width: "100%",
-  maxWidth: 460,
-};
 
 export function VerifyEmailPage() {
   const navigate = useNavigate();
@@ -79,8 +66,8 @@ export function VerifyEmailPage() {
   }, [navigate, status]);
 
   return (
-    <main style={pageStyle}>
-      <Card style={panelStyle}>
+    <main style={authPageStyle}>
+      <Card style={authPanelStyle}>
         <Result
           status={status === "loading" ? "info" : status}
           title={message}

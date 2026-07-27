@@ -1,6 +1,7 @@
 module.exports.policies = {
   '*': 'isAuthenticated',
   health: true,
+  'public/branding': true,
   'auth/register': true,
   'auth/login': true,
   'auth/verify-email': true,

@@ -50,5 +50,22 @@ try {
 }//-•
 
 
+// Erros fora do ciclo de request (um `.then` sem `.catch` num job, um callback
+// de driver) não passam por `res.serverError` — sem estes handlers o Node 15+
+// derruba o processo em silêncio, sem nada no log para explicar o restart.
+//
+// `unhandledRejection` é logado e o processo continua: quase sempre é uma
+// promise órfã, não um estado corrompido. Já `uncaughtException` deixa o
+// processo em estado indefinido — logamos e saímos com código 1, para o
+// supervisor (pm2/docker/systemd) subir um processo limpo.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', (reason && reason.stack) || reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[uncaughtException]', (error && error.stack) || error);
+  process.exit(1);
+});
+
 // Start server
 sails.lift(rc('sails'));

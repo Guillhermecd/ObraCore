@@ -1,21 +1,37 @@
 module.exports = async function create(req, res) {
-  const { groupId, email } = req.body;
+  const { groupId, email, role } = req.body;
 
   if (!groupId || !email || !email.trim()) {
     return res.badRequest({ message: 'Grupo e e-mail são obrigatórios.' });
   }
 
+  const normalizedRole = role === undefined ? 'FISCAL' : role;
+  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'FISCAL') {
+    return res.badRequest({ message: 'Papel inválido.' });
+  }
+
   const group = await Group.findOne({ id: groupId });
 
-  if (!group || !(await sails.services.groupservice.isMember(req.userRecord, group.id))) {
+  if (!group || !sails.services.groupservice.isMember(req.userRecord, group.id)) {
     return res.status(404).json({ message: 'Grupo não encontrado.' });
   }
 
-  if (group.owner !== req.user.id) {
-    return res.status(403).json({ message: 'Apenas o criador do grupo pode enviar convites.' });
+  if (!sails.services.groupservice.can(group, req.user.id, 'invite')) {
+    return res.status(403).json({ message: 'Você não tem permissão para convidar colaboradores.' });
   }
 
-  const normalizedEmail = sails.services.authservice.normalizeEmail(email);
+  // Mesma regra de `update-member-role`: quem não é dono não cria um par que
+  // depois não poderia rebaixar.
+  if (
+    normalizedRole === 'ADMIN' &&
+    sails.services.groupservice.roleOf(group, req.user.id) !== 'MASTER'
+  ) {
+    return res.status(403).json({
+      message: 'Apenas o criador da obra pode convidar um administrador.',
+    });
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
   const invitee = await User.findOne({ email: normalizedEmail });
 
   if (!invitee) {
@@ -26,8 +42,8 @@ module.exports = async function create(req, res) {
     return res.badRequest({ message: 'Você já participa deste grupo.' });
   }
 
-  const isAlreadyMember = await sails.services.groupservice.isMember(invitee, group.id);
-  if (isAlreadyMember) {
+  const memberIds = Array.isArray(group.memberIds) ? group.memberIds : [];
+  if (memberIds.includes(invitee.id)) {
     return res.status(409).json({ message: 'Este usuário já é membro do grupo.' });
   }
 
@@ -46,6 +62,7 @@ module.exports = async function create(req, res) {
     inviterId: req.user.id,
     inviteeId: invitee.id,
     inviteeEmail: normalizedEmail,
+    role: normalizedRole,
   }).fetch();
 
   await sails.services.emailservice.sendMail({
@@ -62,6 +79,7 @@ module.exports = async function create(req, res) {
       groupId: invite.groupId,
       groupName: group.name,
       inviteeEmail: invite.inviteeEmail,
+      role: invite.role,
       status: invite.status,
       createdAt: invite.createdAt,
     },

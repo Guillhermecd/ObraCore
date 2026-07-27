@@ -10,28 +10,32 @@ import {
   Input,
   InputNumber,
   Modal,
+  Segmented,
   Select,
+  Switch,
   Upload,
   message,
   type UploadProps,
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useEffect, useState, type CSSProperties } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import type { CreateExpensePayload } from "../../api/modules/ExpenseService";
 import { ExpenseService } from "../../api/modules/ExpenseService";
 import { PAYMENT_METHODS } from "../../api/modules/types";
+import { getErrorMessage } from "../../utils/errors";
 import type {
   Expense,
   ExpenseCategory,
   ExpenseSource,
+  ExpenseTipo,
   PaymentMethod,
 } from "../../api/modules/types";
-import { getErrorMessage } from "../../utils/errors";
 import { CreateCategoryModal } from "./CreateCategoryModal";
 import { CreateSourceModal } from "./CreateSourceModal";
 
 type ExpenseForm = {
+  tipo: ExpenseTipo;
   date: Dayjs;
   categoryId: string | undefined;
   sourceId: string | undefined;
@@ -39,6 +43,7 @@ type ExpenseForm = {
   paymentMethod: PaymentMethod | undefined;
   amount: number | null;
   notes: string;
+  realizado: boolean;
 };
 
 const fieldsGridStyle: CSSProperties = {
@@ -60,6 +65,7 @@ const attachmentRowStyle: CSSProperties = {
 
 function emptyFormValues(): ExpenseForm {
   return {
+    tipo: "SAIDA",
     date: dayjs(),
     categoryId: undefined,
     sourceId: undefined,
@@ -67,11 +73,13 @@ function emptyFormValues(): ExpenseForm {
     paymentMethod: undefined,
     amount: null,
     notes: "",
+    realizado: true,
   };
 }
 
 function valuesFromExpense(expense: Expense): ExpenseForm {
   return {
+    tipo: expense.tipo ?? "SAIDA",
     date: dayjs(expense.date),
     categoryId: expense.categoryId,
     sourceId: expense.sourceId,
@@ -79,6 +87,7 @@ function valuesFromExpense(expense: Expense): ExpenseForm {
     paymentMethod: expense.paymentMethod,
     amount: expense.amount,
     notes: expense.notes || "",
+    realizado: Boolean(expense.dataRealizada),
   };
 }
 
@@ -115,8 +124,17 @@ export function ExpenseFormModal({
     handleSubmit,
     reset,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<ExpenseForm>({ defaultValues: emptyFormValues() });
+
+  const tipo = useWatch({ control, name: "tipo" });
+  const categoriesForTipo = categories.filter(
+    (category) => category.tipo === tipo || category.tipo === "AMBOS",
+  );
+  const sourcesForTipo = sources.filter(
+    (source) => source.tipo === tipo || source.tipo === "AMBOS",
+  );
 
   useEffect(() => {
     if (open) {
@@ -127,6 +145,20 @@ export function ExpenseFormModal({
       );
     }
   }, [open, mode, expense, reset]);
+
+  const handleTipoChange = (value: ExpenseTipo) => {
+    setValue("tipo", value);
+
+    const currentCategory = categories.find((c) => c.id === getValues("categoryId"));
+    if (currentCategory && currentCategory.tipo !== value && currentCategory.tipo !== "AMBOS") {
+      setValue("categoryId", undefined);
+    }
+
+    const currentSource = sources.find((s) => s.id === getValues("sourceId"));
+    if (currentSource && currentSource.tipo !== value && currentSource.tipo !== "AMBOS") {
+      setValue("sourceId", undefined);
+    }
+  };
 
   const close = () => {
     setComprovanteFile(null);
@@ -144,14 +176,18 @@ export function ExpenseFormModal({
       return;
     }
 
+    const isoDate = values.date.toISOString();
     const payload: CreateExpensePayload = {
-      date: values.date.toISOString(),
+      date: isoDate,
       categoryId: values.categoryId,
       sourceId: values.sourceId,
       supplier: values.supplier || undefined,
       paymentMethod: values.paymentMethod,
       amount: values.amount,
       notes: values.notes || undefined,
+      tipo: values.tipo,
+      dataPrevista: isoDate,
+      dataRealizada: values.realizado ? isoDate : null,
     };
 
     try {
@@ -200,6 +236,23 @@ export function ExpenseFormModal({
       >
         {contextHolder}
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
+          <Controller
+            name="tipo"
+            control={control}
+            render={({ field }) => (
+              <Form.Item label="Tipo">
+                <Segmented
+                  value={field.value}
+                  onChange={(value) => handleTipoChange(value as ExpenseTipo)}
+                  options={[
+                    { label: "Saída", value: "SAIDA" },
+                    { label: "Entrada", value: "ENTRADA" },
+                  ]}
+                />
+              </Form.Item>
+            )}
+          />
+
           <div style={fieldsGridStyle}>
             <Controller
               name="date"
@@ -221,6 +274,21 @@ export function ExpenseFormModal({
             />
 
             <Controller
+              name="realizado"
+              control={control}
+              render={({ field }) => (
+                <Form.Item label={tipo === "ENTRADA" ? "Já recebido?" : "Já pago?"}>
+                  <Switch
+                    checked={field.value}
+                    onChange={field.onChange}
+                    checkedChildren="Realizado"
+                    unCheckedChildren="Previsto"
+                  />
+                </Form.Item>
+              )}
+            />
+
+            <Controller
               name="categoryId"
               control={control}
               rules={{ required: "Selecione a categoria." }}
@@ -234,7 +302,7 @@ export function ExpenseFormModal({
                     <Select
                       {...field}
                       placeholder="Selecione a categoria"
-                      options={categories.map((category) => ({
+                      options={categoriesForTipo.map((category) => ({
                         value: category.id,
                         label: category.name,
                       }))}
@@ -264,7 +332,7 @@ export function ExpenseFormModal({
                     <Select
                       {...field}
                       placeholder="Selecione a fonte"
-                      options={sources.map((source) => ({
+                      options={sourcesForTipo.map((source) => ({
                         value: source.id,
                         label: source.name,
                       }))}
@@ -397,6 +465,7 @@ export function ExpenseFormModal({
 
       <CreateCategoryModal
         open={categoryModalOpen}
+        tipo={tipo ?? "SAIDA"}
         onClose={() => setCategoryModalOpen(false)}
         onCreated={(category) => {
           onCategoriesChange(
@@ -409,6 +478,7 @@ export function ExpenseFormModal({
       />
       <CreateSourceModal
         open={sourceModalOpen}
+        tipo={tipo ?? "SAIDA"}
         onClose={() => setSourceModalOpen(false)}
         onCreated={(source) => {
           onSourcesChange(

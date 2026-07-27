@@ -37,15 +37,12 @@ Tela **Controle** — cadastro e histórico dos gastos:
 
 ## Dashboard
 
-Resumo visual dos gastos do grupo ativo, com filtro por período (data inicial/final) e visual
-glassmorphism (cards translúcidos sobre fundo em gradiente, adaptado a tema claro/escuro):
+Resumo visual dos gastos do grupo ativo, com filtro por período (data inicial/final):
 
-- KPIs do período filtrado: total gasto (com o gasto planejado do grupo como subtexto), progresso
-  (% do planejado já gasto, com barra) e número de lançamentos.
-- Gráfico de barra: gasto por categoria. Gráfico de coluna: evolução mensal do gasto.
-- Cards **Por Fonte** e **Por Pagamento**: listas com barra de proporção por fonte/forma de
-  pagamento. Card **Status**: categorias usadas no período e receita livre (gasto planejado menos
-  o total já gasto no projeto inteiro, sem o filtro de período — verde quando positiva).
+- Cards de **Gasto Planejado** e **Saldo de orçamento** (planejado menos o total já gasto no projeto inteiro, sem o filtro de período; considera apenas lançamentos de saída).
+- KPIs do período filtrado: total gasto, número de lançamentos, ticket médio, categorias usadas.
+- Gráficos de barra: gasto por categoria, por fonte e por forma de pagamento.
+- Gráfico de coluna: evolução mensal do gasto.
 - Tabela de top fornecedores.
 - **Exportar PDF**: captura o dashboard exatamente como está na tela (respeitando o tema claro/escuro ativo) e gera um PDF paginado para download — útil para compartilhar o resumo sem dar acesso ao sistema.
 

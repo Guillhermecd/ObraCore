@@ -10,6 +10,7 @@ module.exports = async function listSent(req, res) {
       groupId: invite.groupId,
       groupName: groupById.get(invite.groupId)?.name || 'Grupo removido',
       inviteeEmail: invite.inviteeEmail,
+      role: invite.role || 'FISCAL',
       status: invite.status,
       createdAt: invite.createdAt,
     })),

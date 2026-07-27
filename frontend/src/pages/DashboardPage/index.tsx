@@ -1,13 +1,16 @@
 import { Bar, Column } from "@ant-design/charts";
 import { DownloadOutlined } from "@ant-design/icons";
 import {
+  Alert as AntAlert,
   Button,
+  Card,
   DatePicker,
   Empty,
-  Grid,
-  Spin,
-  Statistic,
+  Progress,
+  Skeleton,
   Table,
+  Tabs,
+  Tag,
   message,
   theme,
   type TableColumnsType,
@@ -15,82 +18,74 @@ import {
 import dayjs, { type Dayjs } from "dayjs";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
-import { useMemo, useRef, useState } from "react";
-import { chartGradientH, chartGradientV } from "../../brand";
-import type { Expense } from "../../api/modules/types";
-import { useExpenseData } from "../../api/modules/useExpenseData";
+import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
+import { DashboardService } from "../../api/modules/DashboardService";
+import type {
+  BreakdownItem,
+  DashboardObraResponse,
+  TopSupplier,
+} from "../../api/modules/types";
+import { Kpi } from "../../components/Kpi";
+import { kpiGridStyle } from "../../components/layout";
+import { SectionBlock } from "../../components/SectionBlock";
+import { GroupSelect } from "../../layouts/GroupSelect";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
 import { getErrorMessage } from "../../utils/errors";
-import { formatCompactCurrency, formatCurrency } from "../../utils/format";
-import styles from "./dashboard.module.css";
+import { formatDate, formatMonth, plural } from "../../utils/format";
+import { usePrivacyFormat } from "../../privacyContext";
+import {
+  SITUACAO_OBRA_COLOR,
+  SITUACAO_OBRA_LABEL,
+  entradaLabel,
+  entradaPendenteLabel,
+} from "../../utils/obra";
+import {
+  coberturaColor,
+  consumoColor,
+  saldoColor,
+} from "../../utils/thresholds";
 
 const { RangePicker } = DatePicker;
 
-type BreakdownItem = {
-  name: string;
-  value: number;
-};
+const EXTRAPOLACAO_NOTE =
+  "Projeções por extrapolação linear do ritmo de gasto dos últimos 3 meses. Não consideram o cronograma físico da obra.";
 
-type SupplierTotal = {
-  supplier: string;
-  total: number;
-  count: number;
+const pageHeaderRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: 16,
+  marginBottom: 24,
 };
 
 function breakdownHeight(itemCount: number) {
   return Math.max(160, itemCount * 44 + 40);
 }
 
-function withHeadroom(items: { value: number }[], factor: number) {
-  const max = items.reduce((m, item) => Math.max(m, item.value), 0);
+// Espaço extra no topo do eixo dos gráficos, para o rótulo de valor não
+// colar no limite do gráfico — puramente visual, não é cálculo financeiro.
+function withHeadroom(items: { valor: number }[], factor: number) {
+  const max = items.reduce((m, item) => Math.max(m, item.valor), 0);
   return max > 0 ? max * factor : undefined;
-}
-
-function maxValue(items: BreakdownItem[]) {
-  return items.reduce((m, item) => Math.max(m, item.value), 0) || 1;
-}
-
-function buildBreakdown(
-  expenses: Expense[],
-  keyOf: (expense: Expense) => string,
-): BreakdownItem[] {
-  const totals = new Map<string, number>();
-  expenses.forEach((expense) => {
-    const key = keyOf(expense);
-    totals.set(key, (totals.get(key) || 0) + expense.amount);
-  });
-  return Array.from(totals, ([name, value]) => ({ name, value })).sort(
-    (a, b) => b.value - a.value,
-  );
-}
-
-function BreakdownList({ items }: Readonly<{ items: BreakdownItem[] }>) {
-  const max = maxValue(items);
-  return (
-    <div className={styles.breakdownList}>
-      {items.map((item) => (
-        <div key={item.name} className={styles.breakdownItem}>
-          <div className={styles.breakdownRow}>
-            <span className={styles.breakdownName}>{item.name}</span>
-            <span className={styles.breakdownValue}>
-              {formatCurrency(item.value)}
-            </span>
-          </div>
-          <div className={styles.breakdownBarTrack}>
-            <div
-              className={styles.breakdownBarFill}
-              style={{ width: `${(item.value / max) * 100}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export function DashboardPage() {
   const { token } = theme.useToken();
+  const {
+    formatCurrency,
+    formatCompactCurrency,
+    formatPercent,
+    formatMeses,
+  } = usePrivacyFormat();
+
+  const pageTitleStyle: CSSProperties = {
+    margin: 0,
+    color: token.colorTextHeading,
+    fontSize: 26,
+  };
 
   function labelStyle() {
     return { fill: token.colorTextHeading, fontSize: 12, fontWeight: 600 };
@@ -112,6 +107,8 @@ export function DashboardPage() {
       labelFill: token.colorText,
       labelFontSize: 12,
       labelFontWeight: 500,
+      labelAutoRotate: false as const,
+      labelAutoHide: true as const,
     },
     y: {
       title: false,
@@ -123,108 +120,60 @@ export function DashboardPage() {
     },
   };
 
-  usePrivateMobileHeader("Dashboard");
-  const screens = Grid.useBreakpoint();
-  const isDesktop = Boolean(screens.md);
+  usePrivateMobileHeader("Obra");
   const [messageApi, contextHolder] = message.useMessage();
-  const { activeGroupId, activeGroup } = useActiveGroup();
+  const { activeGroupId, loading: groupsLoading } = useActiveGroup();
 
+  const [obra, setObra] = useState<DashboardObraResponse | null>(null);
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const dashboardRef = useRef<HTMLElement>(null);
 
-  const { expenses, categoryMap, sourceMap, loading } = useExpenseData(
-    activeGroupId,
-    (errorMessage) => messageApi.error(errorMessage),
-  );
+  // Chave da requisição em curso. `loading` é derivado dela em vez de ser um
+  // estado próprio: assim trocar de obra ou de período já deixa a tela em
+  // carregamento no mesmo render, sem um setState extra dentro do efeito.
+  const from = range?.[0]?.format("YYYY-MM-DD");
+  const to = range?.[1]?.format("YYYY-MM-DD");
+  const requestKey = `${activeGroupId ?? ""}|${from ?? ""}|${to ?? ""}`;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  // Sem obra ativa não há o que carregar: sem esta guarda a tela ficava em
+  // esqueleto para sempre quando a lista de obras falhava ou vinha vazia.
+  const noActiveGroup = !groupsLoading && !activeGroupId;
+  const loading = !noActiveGroup && loadedKey !== requestKey;
 
-  const filteredExpenses = useMemo(() => {
-    if (!range) {
-      return expenses;
+  useEffect(() => {
+    if (!activeGroupId) {
+      return;
     }
-    const [start, end] = range;
-    const startBoundary = start.startOf("day");
-    const endBoundary = end.endOf("day");
-    return expenses.filter((expense) => {
-      const date = dayjs(expense.date);
-      return (
-        (date.isSame(startBoundary) || date.isAfter(startBoundary)) &&
-        (date.isSame(endBoundary) || date.isBefore(endBoundary))
-      );
-    });
-  }, [expenses, range]);
 
-  const totalAmount = useMemo(
-    () => filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0),
-    [filteredExpenses],
-  );
+    DashboardService.obra(activeGroupId, from, to)
+      .then((response) => setObra(response))
+      .catch((error: unknown) => {
+        messageApi.error(getErrorMessage(error, "Erro ao carregar dados."));
+      })
+      .finally(() => setLoadedKey(requestKey));
+  }, [messageApi, activeGroupId, from, to, requestKey]);
 
-  const projectTotal = useMemo(
-    () => expenses.reduce((sum, expense) => sum + expense.amount, 0),
-    [expenses],
-  );
-  const plannedSpending = activeGroup?.plannedSpending ?? 0;
-  const freeRevenue = plannedSpending - projectTotal;
+  const tipoObra = obra?.tipoObra ?? "PROPRIA";
+  const consumidoPct = obra?.consumidoPct ?? null;
+  const coberturaPct = obra?.coberturaPct ?? null;
+  const hasFlowData = (obra?.qtdLancamentos ?? 0) > 0;
 
-  const progressPct =
-    plannedSpending > 0 ? (totalAmount / plannedSpending) * 100 : 0;
-  const progressWidth = Math.min(100, Math.max(0, progressPct));
+  const monthlyEvolution =
+    obra?.evolucaoMensal.map((point) => ({
+      mes: dayjs(`${point.mes}-01`).format("MMM/YY"),
+      valor: point.valor,
+    })) ?? [];
 
-  const categoryBreakdown = useMemo(
-    () =>
-      buildBreakdown(
-        filteredExpenses,
-        (expense) =>
-          categoryMap.get(expense.categoryId)?.name || "Sem categoria",
-      ),
-    [filteredExpenses, categoryMap],
-  );
-
-  const sourceBreakdown = useMemo(
-    () =>
-      buildBreakdown(
-        filteredExpenses,
-        (expense) => sourceMap.get(expense.sourceId)?.name || "Sem fonte",
-      ),
-    [filteredExpenses, sourceMap],
-  );
-
-  const paymentMethodBreakdown = useMemo(
-    () => buildBreakdown(filteredExpenses, (expense) => expense.paymentMethod),
-    [filteredExpenses],
-  );
-
-  const monthlyEvolution = useMemo(() => {
-    const totals = new Map<string, number>();
-    filteredExpenses.forEach((expense) => {
-      const key = dayjs(expense.date).format("YYYY-MM");
-      totals.set(key, (totals.get(key) || 0) + expense.amount);
-    });
-    return Array.from(totals, ([key, value]) => ({
-      key,
-      month: dayjs(`${key}-01`).format("MMM/YY"),
-      value,
-    })).sort((a, b) => a.key.localeCompare(b.key));
-  }, [filteredExpenses]);
-
-  const topSuppliers = useMemo<SupplierTotal[]>(() => {
-    const totals = new Map<string, { total: number; count: number }>();
-    filteredExpenses.forEach((expense) => {
-      const key = expense.supplier?.trim() || "Sem fornecedor";
-      const current = totals.get(key) || { total: 0, count: 0 };
-      totals.set(key, {
-        total: current.total + expense.amount,
-        count: current.count + 1,
-      });
-    });
-    return Array.from(totals, ([supplier, data]) => ({ supplier, ...data }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 8);
-  }, [filteredExpenses]);
-
-  const supplierColumns: TableColumnsType<SupplierTotal> = [
-    { title: "Fornecedor", dataIndex: "supplier", key: "supplier" },
-    { title: "Lançamentos", dataIndex: "count", key: "count", width: 140 },
+  const supplierColumns: TableColumnsType<TopSupplier> = [
+    { title: "Fornecedor", dataIndex: "nome", key: "nome" },
+    {
+      title: "Lançamentos",
+      dataIndex: "count",
+      key: "count",
+      width: 140,
+      render: (value: number) => plural(value, "lançamento", "lançamentos"),
+    },
     {
       title: "Total gasto",
       dataIndex: "total",
@@ -233,7 +182,42 @@ export function DashboardPage() {
     },
   ];
 
-  const hasData = filteredExpenses.length > 0;
+  function renderBreakdownTab(data: BreakdownItem[]) {
+    if (loading) {
+      return <Skeleton active paragraph={{ rows: 4 }} />;
+    }
+    if (data.length === 0) {
+      return <Empty description="Nenhum gasto no período selecionado." />;
+    }
+    return (
+      <Bar
+        data={data}
+        xField="nome"
+        yField="valor"
+        // `color` não é aplicado pelo adaptor do Plots v2 (a barra ficava no
+        // azul padrão do G2, ignorando a marca) — a cor de série única vai em
+        // `style.fill`.
+        style={{ fill: token.colorPrimary }}
+        height={breakdownHeight(data.length)}
+        axis={barAxisConfig}
+        // Teto de domínio ~25% acima do maior valor deixa a maior barra em
+        // torno de 80% da largura útil: o rótulo do maior valor cabe sem
+        // encostar na borda, e a largura segue proporcional ao valor.
+        scale={{
+          y: { nice: false, domainMin: 0, domainMax: withHeadroom(data, 1.25) },
+        }}
+        label={{
+          text: (datum: BreakdownItem) => formatCurrency(datum.valor),
+          position: "right",
+          style: { ...labelStyle(), textAlign: "start" as const },
+          transform: [{ type: "exceedAdjust" }],
+        }}
+        tooltip={{
+          items: [{ field: "valor", valueFormatter: formatCurrency }],
+        }}
+      />
+    );
+  }
 
   const exportPdf = async () => {
     if (!dashboardRef.current) {
@@ -244,9 +228,12 @@ export function DashboardPage() {
     try {
       const dataUrl = await toPng(dashboardRef.current, {
         pixelRatio: 2,
-        backgroundColor: "#0f1b35",
+        backgroundColor: token.colorBgLayout,
         filter: (node) =>
-          !(node instanceof HTMLElement && node.classList.contains("export-ignore")),
+          !(
+            node instanceof HTMLElement &&
+            node.classList.contains("export-ignore")
+          ),
       });
 
       const image = new Image();
@@ -276,7 +263,7 @@ export function DashboardPage() {
         heightLeft -= pageHeight;
       }
 
-      pdf.save("dashboard.pdf");
+      pdf.save("obra.pdf");
     } catch (error) {
       messageApi.error(getErrorMessage(error, "Erro ao exportar dashboard."));
     } finally {
@@ -284,207 +271,361 @@ export function DashboardPage() {
     }
   };
 
-  const statValueClassNames = { title: styles.label, content: styles.value };
-
   return (
     <section ref={dashboardRef}>
       {contextHolder}
-      <div className={styles.page}>
-        <div className={styles.blobLayer}>
-          <div className={`${styles.blob} ${styles.blob1}`} />
-          <div className={`${styles.blob} ${styles.blob2}`} />
-          <div className={`${styles.blob} ${styles.blob3}`} />
+      <div style={pageHeaderRowStyle}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <h1 style={pageTitleStyle}>Obra — Financeiro</h1>
+          <GroupSelect />
+          {!noActiveGroup && obra && (
+            <Tag color={SITUACAO_OBRA_COLOR[obra.situacao]} style={{ margin: 0 }}>
+              {SITUACAO_OBRA_LABEL[obra.situacao]}
+            </Tag>
+          )}
+          {/* Fora do `export-ignore` de propósito: o PDF esconde o seletor de
+              datas, então sem este rótulo o arquivo exportado mostraria dados
+              filtrados sem dizer de que período são. */}
+          <span style={{ fontSize: 12, color: token.colorTextSecondary }}>
+            {range === null
+              ? "Todo o período"
+              : `${range[0].format("DD/MM/YYYY")} a ${range[1].format("DD/MM/YYYY")}`}
+          </span>
         </div>
-
-        <div className={styles.content}>
-          <div className={styles.headerRow}>
-            {isDesktop && (
-              <div>
-                <h1 className={styles.pageTitle}>Dashboard</h1>
-                <p className={styles.pageDescription}>
-                  Resumo do que foi gasto, quanto e como, na obra.
-                </p>
-              </div>
-            )}
-            <div className={`${styles.exportBtnWrap} export-ignore`}>
-              <Button
-                type="text"
-                icon={<DownloadOutlined />}
-                onClick={exportPdf}
-                loading={exportingPdf}
-              >
-                Exportar PDF
-              </Button>
-            </div>
-          </div>
-
-          <div className={styles.filterRow}>
-            <RangePicker
-              value={range}
-              onChange={(values) =>
-                setRange(
-                  values && values[0] && values[1]
-                    ? [values[0], values[1]]
-                    : null,
-                )
-              }
-              format="DD/MM/YYYY"
-              placeholder={["Início", "Fim"]}
-              allowClear
-            />
-          </div>
-
-          <Spin spinning={loading}>
-            <div className={styles.kpiGrid}>
-              <div className={styles.glassCard}>
-                <Statistic
-                  title="Total gasto"
-                  value={totalAmount}
-                  formatter={() => formatCurrency(totalAmount)}
-                  classNames={statValueClassNames}
-                />
-                <div className={styles.subtext}>
-                  de {formatCurrency(plannedSpending)}
-                </div>
-              </div>
-              <div className={styles.glassCard}>
-                <Statistic
-                  title="Progresso"
-                  value={progressPct}
-                  formatter={() => `${Math.round(progressPct)}%`}
-                  classNames={statValueClassNames}
-                />
-                <div className={styles.progressTrack}>
-                  <div
-                    className={styles.progressFill}
-                    style={{ width: `${progressWidth}%` }}
-                  />
-                </div>
-              </div>
-              <div className={styles.glassCard}>
-                <Statistic
-                  title="Lançamentos"
-                  value={filteredExpenses.length}
-                  classNames={statValueClassNames}
-                />
-              </div>
-            </div>
-
-            {!loading && !hasData ? (
-              <div className={styles.glassCard}>
-                <Empty description="Nenhum lançamento no período selecionado. Cadastre gastos na aba Controle." />
-              </div>
-            ) : (
-              <>
-                <div className={styles.chartsRow}>
-                  <div className={styles.glassCard}>
-                    <h3 className={styles.cardTitle}>Gasto por categoria</h3>
-                    <Bar
-                      data={categoryBreakdown}
-                      xField="name"
-                      yField="value"
-                      height={breakdownHeight(categoryBreakdown.length)}
-                      axis={barAxisConfig}
-                      scale={{
-                        y: {
-                          nice: true,
-                          domainMax: withHeadroom(categoryBreakdown, 1.25),
-                        },
-                      }}
-                      style={{ fill: chartGradientH }}
-                      label={{
-                        text: (datum: BreakdownItem) =>
-                          formatCurrency(datum.value),
-                        position: "right",
-                        style: {
-                          ...labelStyle(),
-                          textAlign: "start" as const,
-                          dx: 8,
-                        },
-                        transform: [{ type: "exceedAdjust" }],
-                      }}
-                      tooltip={{
-                        items: [{ field: "value", valueFormatter: formatCurrency }],
-                      }}
-                    />
-                  </div>
-                  <div className={styles.glassCard}>
-                    <h3 className={styles.cardTitle}>Evolução mensal</h3>
-                    <Column
-                      data={monthlyEvolution}
-                      xField="month"
-                      yField="value"
-                      height={300}
-                      axis={columnAxisConfig}
-                      scale={{
-                        y: {
-                          nice: true,
-                          domainMax: withHeadroom(monthlyEvolution, 1.3),
-                        },
-                      }}
-                      label={{
-                        text: (datum: { value: number }) =>
-                          formatCurrency(datum.value),
-                        position: "top" as const,
-                        style: { ...labelStyle(), dy: -15 },
-                        transform: [{ type: "overlapHide" }],
-                      }}
-                      tooltip={{
-                        items: [{ field: "value", valueFormatter: formatCurrency }],
-                      }}
-                      style={{
-                        fill: chartGradientV,
-                        radiusTopLeft: 4,
-                        radiusTopRight: 4,
-                        maxWidth: 40,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.summaryRow}>
-                  <div className={styles.glassCard}>
-                    <h3 className={styles.cardTitle}>Por Fonte</h3>
-                    <BreakdownList items={sourceBreakdown} />
-                  </div>
-                  <div className={styles.glassCard}>
-                    <h3 className={styles.cardTitle}>Por Pagamento</h3>
-                    <BreakdownList items={paymentMethodBreakdown} />
-                  </div>
-                  <div className={styles.glassCard}>
-                    <h3 className={styles.cardTitle}>Status</h3>
-                    <div className={styles.statusRow}>
-                      <span className={styles.label}>Categorias usadas</span>
-                      <span className={styles.value}>
-                        {categoryBreakdown.length}
-                      </span>
-                    </div>
-                    <div className={styles.statusRow}>
-                      <span className={styles.label}>Receita livre</span>
-                      <span
-                        className={`${styles.value} ${freeRevenue < 0 ? styles.negative : styles.positive
-                          }`}
-                      >
-                        {formatCurrency(freeRevenue)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.glassCard}>
-                  <h3 className={styles.cardTitle}>Top fornecedores</h3>
-                  <Table
-                    rowKey="supplier"
-                    columns={supplierColumns}
-                    dataSource={topSuppliers}
-                    pagination={false}
-                  />
-                </div>
-              </>
-            )}
-          </Spin>
+        <div
+          className="export-ignore"
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <RangePicker
+            value={range}
+            onChange={(values) =>
+              setRange(
+                values && values[0] && values[1]
+                  ? [values[0], values[1]]
+                  : null,
+              )
+            }
+            format="DD/MM/YYYY"
+            placeholder={["Início", "Fim"]}
+            allowClear
+          />
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={exportPdf}
+            loading={exportingPdf}
+          >
+            Exportar PDF
+          </Button>
         </div>
       </div>
+
+      {noActiveGroup && (
+        <Card>
+          <Empty description="Nenhuma obra selecionada. Cadastre uma obra em Grupos para ver o financeiro dela." />
+        </Card>
+      )}
+
+      {!noActiveGroup && !loading && obra?.situacao === "CONCLUIDO" && (
+        <AntAlert
+          type="success"
+          showIcon
+          style={{ marginBottom: 24 }}
+          message="Obra concluída — não recebe mais lançamentos"
+          description={
+            obra.valorFechamento === null
+              ? "Valor de fechamento ainda não informado. Sem ele não há lucro definitivo a calcular."
+              : `Valor de fechamento: ${formatCurrency(obra.valorFechamento)}. Lucro realizado: ${formatCurrency(obra.lucroRealizado ?? 0)}.`
+          }
+        />
+      )}
+
+      {!noActiveGroup &&
+        !loading &&
+        obra?.situacao !== "CONCLUIDO" &&
+        (obra?.pendencias ?? 0) > 0 && (
+        <AntAlert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 24 }}
+          message={`${plural(obra?.pendencias ?? 0, "pendência", "pendências")} nesta obra`}
+          description={`${formatCurrency(obra?.saidasPendentes ?? 0)} em saídas previstas ainda fora do custo realizado.`}
+        />
+      )}
+
+      {!noActiveGroup && (
+        <>
+          <SectionBlock title="Orçamento" scope="acumulado">
+            <div style={kpiGridStyle}>
+              <Kpi
+                loading={loading}
+                label="Orçamento previsto"
+                value={formatCurrency(obra?.orcamentoPrevisto ?? 0)}
+                hint="Gasto planejado cadastrado para esta obra."
+              />
+              <Kpi
+                loading={loading}
+                label="Custo realizado"
+                value={formatCurrency(obra?.custoRealizado ?? 0)}
+                hint="Soma das saídas já realizadas (com data realizada preenchida) nesta obra."
+              />
+              <Kpi
+                loading={loading}
+                label="Saldo de orçamento"
+                value={formatCurrency(obra?.saldoOrcamento ?? 0)}
+                color={saldoColor(obra?.saldoOrcamento ?? 0, token)}
+                hint="Orçamento previsto menos custo realizado — quanto ainda resta do orçamento."
+              />
+            </div>
+
+            <Card style={{ marginTop: 16 }}>
+              {loading ? (
+                <Skeleton active paragraph={{ rows: 1 }} title={false} />
+              ) : consumidoPct === null ? (
+                <div style={{ color: token.colorTextSecondary, fontSize: 13 }}>
+                  Sem orçamento definido para esta obra.
+                </div>
+              ) : (
+                <>
+                  <Progress
+                    percent={Math.min(consumidoPct, 100)}
+                    strokeColor={consumoColor(consumidoPct, token)}
+                    format={() => `${formatPercent(consumidoPct)} consumido`}
+                  />
+                  <div
+                    style={{ fontSize: 12, color: token.colorTextSecondary }}
+                  >
+                    {(obra?.saidasPendentes ?? 0) > 0
+                      ? `Mais ${formatCurrency(obra?.saidasPendentes ?? 0)} em saídas previstas, ainda fora do realizado.`
+                      : "Nenhuma saída prevista fora do realizado."}
+                  </div>
+                </>
+              )}
+            </Card>
+          </SectionBlock>
+
+          <SectionBlock title="Caixa" scope="acumulado">
+            <div style={kpiGridStyle}>
+              <Kpi
+                loading={loading}
+                label={entradaLabel(tipoObra)}
+                value={formatCurrency(obra?.totalAportado ?? 0)}
+                hint={
+                  tipoObra === "CLIENTE"
+                    ? "Total já recebido do cliente nesta obra."
+                    : "Total de capital aportado nesta obra pelo dono."
+                }
+              />
+              <Kpi
+                loading={loading}
+                label="Saldo em caixa"
+                value={formatCurrency(obra?.saldoEmCaixa ?? 0)}
+                color={saldoColor(obra?.saldoEmCaixa ?? 0, token)}
+                hint={
+                  tipoObra === "CLIENTE"
+                    ? "Recebido menos custo realizado — o caixa de fato disponível nesta obra."
+                    : "Aportado menos custo realizado — o caixa de fato disponível nesta obra."
+                }
+              />
+              <Kpi
+                loading={loading}
+                label={entradaPendenteLabel(tipoObra)}
+                value={formatCurrency(obra?.aporteAFazer ?? 0)}
+                color={
+                  (obra?.aporteAFazer ?? 0) > 0
+                    ? token.colorWarning
+                    : token.colorText
+                }
+                hint="Quanto ainda precisa entrar para o caixa cobrir o orçamento inteiro da obra."
+              />
+            </div>
+
+            <Card style={{ marginTop: 16 }}>
+              {loading ? (
+                <Skeleton active paragraph={{ rows: 1 }} title={false} />
+              ) : coberturaPct === null ? (
+                <div style={{ color: token.colorTextSecondary, fontSize: 13 }}>
+                  Sem orçamento a executar — não há cobertura a calcular.
+                </div>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: token.colorTextSecondary,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Cobertura de caixa
+                  </div>
+                  <Progress
+                    percent={Math.min(coberturaPct, 100)}
+                    strokeColor={coberturaColor(coberturaPct, token)}
+                    format={() => formatPercent(coberturaPct)}
+                  />
+                  <div
+                    style={{ fontSize: 12, color: token.colorTextSecondary }}
+                  >
+                    Quanto o caixa atual cobre do orçamento que ainda resta
+                    executar.
+                  </div>
+                </>
+              )}
+            </Card>
+          </SectionBlock>
+
+          <SectionBlock
+            title="Ritmo"
+            scope="ritmo"
+            footnote={EXTRAPOLACAO_NOTE}
+          >
+            <div style={kpiGridStyle}>
+              <Kpi
+                loading={loading}
+                label="Gasto médio mensal"
+                value={formatCurrency(obra?.gastoMedioMensal ?? 0)}
+                hint="Média das saídas realizadas nos últimos 3 meses civis completos (o mês corrente fica de fora por estar parcial)."
+              />
+              <Kpi
+                loading={loading}
+                label="Fôlego de caixa"
+                value={
+                  obra?.folegoMeses == null
+                    ? "—"
+                    : formatMeses(obra.folegoMeses)
+                }
+                hint="Saldo em caixa dividido pelo gasto médio mensal — quantos meses o caixa atual sustenta no ritmo de gasto recente."
+                detail={
+                  obra?.dataProximoAporte
+                    ? `Próximo aporte estimado em ${formatDate(obra.dataProximoAporte)}`
+                    : "Sem ritmo de gasto para projetar."
+                }
+              />
+              <Kpi
+                loading={loading}
+                label="Esgotamento do orçamento"
+                value={
+                  obra?.mesEsgotamentoOrcamento
+                    ? formatMonth(obra.mesEsgotamentoOrcamento)
+                    : "—"
+                }
+                hint="Mês em que o orçamento que ainda resta se esgotaria, extrapolando o gasto médio mensal atual."
+                detail={
+                  obra?.mesEsgotamentoOrcamento
+                    ? "Mês projetado no ritmo atual."
+                    : "Sem orçamento restante ou sem ritmo de gasto."
+                }
+              />
+            </div>
+          </SectionBlock>
+
+          <SectionBlock title="Composição do gasto" scope="periodo">
+            <Card>
+              {!loading && !hasFlowData ? (
+                <Empty description="Nenhum lançamento no período selecionado. Cadastre gastos na aba Controle." />
+              ) : (
+                <Tabs
+                  items={[
+                    {
+                      key: "categoria",
+                      label: "Categoria",
+                      children: renderBreakdownTab(
+                        obra?.composicao.categoria ?? [],
+                      ),
+                    },
+                    {
+                      key: "fonte",
+                      label: "Fonte",
+                      children: renderBreakdownTab(
+                        obra?.composicao.fonte ?? [],
+                      ),
+                    },
+                    {
+                      key: "formaPagamento",
+                      label: "Forma de pagamento",
+                      children: renderBreakdownTab(
+                        obra?.composicao.formaPagamento ?? [],
+                      ),
+                    },
+                  ]}
+                />
+              )}
+            </Card>
+          </SectionBlock>
+
+          <SectionBlock title="Evolução mensal do gasto" scope="periodo">
+            <Card>
+              {loading ? (
+                <Skeleton active paragraph={{ rows: 5 }} />
+              ) : monthlyEvolution.length === 0 ? (
+                <Empty description="Nenhum gasto no período selecionado." />
+              ) : (
+                <Column
+                  data={monthlyEvolution}
+                  xField="mes"
+                  yField="valor"
+                  height={300}
+                  axis={columnAxisConfig}
+                  scale={{
+                    y: {
+                      nice: true,
+                      domainMax: withHeadroom(monthlyEvolution, 1.18),
+                    },
+                  }}
+                  label={{
+                    text: (datum: { valor: number }) =>
+                      formatCurrency(datum.valor),
+                    position: "top" as const,
+                    style: labelStyle(),
+                    transform: [{ type: "overlapHide" }],
+                  }}
+                  tooltip={{
+                    items: [{ field: "valor", valueFormatter: formatCurrency }],
+                  }}
+                  style={{
+                    fill: token.colorPrimary,
+                    radiusTopLeft: 4,
+                    radiusTopRight: 4,
+                    maxWidth: 40,
+                  }}
+                />
+              )}
+            </Card>
+          </SectionBlock>
+
+          <SectionBlock title="Top fornecedores" scope="periodo">
+            <Card>
+              {loading ? (
+                <Skeleton active paragraph={{ rows: 4 }} />
+              ) : (
+                <Table
+                  rowKey="nome"
+                  columns={supplierColumns}
+                  dataSource={obra?.topFornecedores ?? []}
+                  pagination={false}
+                  scroll={{ x: "max-content" }}
+                  locale={{
+                    emptyText: (
+                      <Empty description="Nenhum fornecedor no período selecionado." />
+                    ),
+                  }}
+                />
+              )}
+            </Card>
+          </SectionBlock>
+        </>
+      )}
     </section>
   );
 }

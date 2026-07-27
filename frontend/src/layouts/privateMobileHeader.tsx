@@ -7,8 +7,6 @@ import {
   type SetStateAction,
 } from "react";
 
-export const defaultPrivateMobileHeaderContent = "BIMD";
-
 type PrivateMobileHeaderContextValue = {
   setMobileHeaderContent: Dispatch<SetStateAction<ReactNode>>;
   resetMobileHeaderContent: () => void;

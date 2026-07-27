@@ -1,25 +1,12 @@
 import { Button, Card, Form, Input, message } from "antd";
-import type { CSSProperties } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { AuthService } from "../../api/modules/AuthService";
+import { authPageStyle, authPanelStyle } from "../../components/layout";
 
 type ResetPasswordForm = {
   password: string;
   passwordConfirmation: string;
-};
-
-const pageStyle: CSSProperties = {
-  minHeight: "100vh",
-  display: "grid",
-  placeItems: "center",
-  padding: 24,
-  background: "#F4F6F8",
-};
-
-const panelStyle: CSSProperties = {
-  width: "100%",
-  maxWidth: 460,
 };
 
 export function ResetPasswordPage() {
@@ -41,9 +28,9 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <main style={pageStyle}>
+    <main style={authPageStyle}>
       {contextHolder}
-      <Card style={panelStyle} title="Redefinir senha">
+      <Card style={authPanelStyle} title="Redefinir senha">
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
           <Controller
             name="password"

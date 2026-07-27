@@ -1,8 +1,7 @@
 /**
- * Extrai uma mensagem de erro amigável, usada em todo `catch` de chamada à
- * API: se `error` for um `Error` de verdade (ex.: lançado por `api()` com a
- * mensagem vinda do backend), usa `error.message`; caso contrário cai no
- * texto padrão informado.
+ * Mensagem de erro amigável a partir de um `catch` tipado como `unknown`.
+ * Usa `error.message` quando é um `Error` de verdade (inclui `ApiError`, que
+ * estende `Error` — ver `api/modules/api.ts`); senão cai no `fallback`.
  */
 export function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;

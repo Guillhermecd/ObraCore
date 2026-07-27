@@ -13,17 +13,17 @@ import {
   type TableColumnsType,
   type UploadProps,
 } from "antd";
-import dayjs from "dayjs";
 import type { CSSProperties } from "react";
 import { useState } from "react";
-import { downloadBlob } from "../../api/modules/api";
+import { triggerBlobDownload } from "../../api/modules/api";
 import { ExpenseService } from "../../api/modules/ExpenseService";
 import type {
   ExpenseImportPreviewResponse,
   ExpenseImportRow,
 } from "../../api/modules/types";
 import { getErrorMessage } from "../../utils/errors";
-import { formatCurrency } from "../../utils/format";
+import { formatDate } from "../../utils/format";
+import { usePrivacyFormat } from "../../privacyContext";
 
 const { Dragger } = Upload;
 const { Paragraph } = Typography;
@@ -60,7 +60,7 @@ function downloadTemplate() {
   const blob = new Blob([csvLines.join("\n")], {
     type: "text/csv;charset=utf-8;",
   });
-  downloadBlob(blob, "modelo-lancamentos.csv");
+  triggerBlobDownload(blob, "modelo-lancamentos.csv");
 }
 
 type Step = "upload" | "preview";
@@ -73,6 +73,7 @@ type Props = {
 
 export function ImportExpensesModal({ open, onClose, onImported }: Props) {
   const { token } = theme.useToken();
+  const { formatCurrency } = usePrivacyFormat();
   const hintStyle: CSSProperties = {
     color: token.colorTextSecondary,
   };
@@ -162,8 +163,7 @@ export function ImportExpensesModal({ open, onClose, onImported }: Props) {
       title: "Data",
       dataIndex: "date",
       key: "date",
-      render: (value: string | null) =>
-        value ? dayjs(value).format("DD/MM/YYYY") : "-",
+      render: (value: string | null) => (value ? formatDate(value) : "-"),
     },
     {
       title: "Categoria",

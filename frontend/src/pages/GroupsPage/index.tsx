@@ -9,17 +9,27 @@ import {
   Space,
   Tag,
   message,
+  theme,
 } from "antd";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { GroupInviteService } from "../../api/modules/GroupInviteService";
 import type { ReceivedGroupInvite, SentGroupInvite } from "../../api/modules/types";
-import { PageHeader } from "../../components/PageHeader";
 import { useActiveGroup } from "../../layouts/groupContext";
 import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
 import { getErrorMessage } from "../../utils/errors";
+import { GROUP_ROLE_LABEL, permissionsFor } from "../../utils/roles";
 import { CreateGroupModal } from "./CreateGroupModal";
 import { ManageGroupModal } from "./ManageGroupModal";
+
+const pageHeaderRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: 12,
+  marginBottom: 20,
+};
 
 const invitesGridStyle: CSSProperties = {
   display: "grid",
@@ -28,6 +38,18 @@ const invitesGridStyle: CSSProperties = {
 };
 
 export function GroupsPage() {
+  const { token } = theme.useToken();
+  const pageTitleStyle: CSSProperties = {
+    margin: 0,
+    color: token.colorTextHeading,
+    fontSize: 26,
+  };
+
+  const pageDescriptionStyle: CSSProperties = {
+    margin: "4px 0 0",
+    color: token.colorTextSecondary,
+  };
+
   const screens = Grid.useBreakpoint();
   const isDesktop = Boolean(screens.md);
   usePrivateMobileHeader("Grupos");
@@ -69,52 +91,65 @@ export function GroupsPage() {
     setRefreshKey((key) => key + 1);
   };
 
-  const acceptInvite = async (invite: ReceivedGroupInvite) => {
+  /**
+   * As três ações de convite (aceitar/recusar/cancelar) só diferem na chamada
+   * ao service e na mensagem de sucesso — erro e refresh são idênticos.
+   */
+  const runInviteAction = async (
+    action: () => Promise<unknown>,
+    onSuccess: () => void,
+    fallbackError: string,
+  ) => {
     try {
-      await GroupInviteService.accept(invite.id);
-      messageApi.success(`Você agora participa de "${invite.groupName}".`);
+      await action();
+      onSuccess();
       refreshAll();
     } catch (error) {
-      messageApi.error(getErrorMessage(error, "Erro ao aceitar convite."));
+      messageApi.error(getErrorMessage(error, fallbackError));
     }
   };
 
-  const declineInvite = async (invite: ReceivedGroupInvite) => {
-    try {
-      await GroupInviteService.decline(invite.id);
-      messageApi.info("Convite recusado.");
-      refreshAll();
-    } catch (error) {
-      messageApi.error(getErrorMessage(error, "Erro ao recusar convite."));
-    }
-  };
+  const acceptInvite = (invite: ReceivedGroupInvite) =>
+    runInviteAction(
+      () => GroupInviteService.accept(invite.id),
+      () => messageApi.success(`Você agora participa de "${invite.groupName}".`),
+      "Erro ao aceitar convite.",
+    );
 
-  const cancelInvite = async (invite: SentGroupInvite) => {
-    try {
-      await GroupInviteService.cancel(invite.id);
-      messageApi.info("Convite cancelado.");
-      refreshAll();
-    } catch (error) {
-      messageApi.error(getErrorMessage(error, "Erro ao cancelar convite."));
-    }
-  };
+  const declineInvite = (invite: ReceivedGroupInvite) =>
+    runInviteAction(
+      () => GroupInviteService.decline(invite.id),
+      () => messageApi.info("Convite recusado."),
+      "Erro ao recusar convite.",
+    );
+
+  const cancelInvite = (invite: SentGroupInvite) =>
+    runInviteAction(
+      () => GroupInviteService.cancel(invite.id),
+      () => messageApi.info("Convite cancelado."),
+      "Erro ao cancelar convite.",
+    );
 
   return (
     <section>
       {contextHolder}
-      <PageHeader
-        title="Grupos"
-        description="Gerencie seus grupos e convites de colaboração."
-        actions={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateModalOpen(true)}
-          >
-            Novo grupo
-          </Button>
-        }
-      />
+      <div style={pageHeaderRowStyle}>
+        {isDesktop && (
+          <div>
+            <h1 style={pageTitleStyle}>Grupos</h1>
+            <p style={pageDescriptionStyle}>
+              Gerencie seus grupos e convites de colaboração.
+            </p>
+          </div>
+        )}
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setCreateModalOpen(true)}
+        >
+          Novo grupo
+        </Button>
+      </div>
 
       <Card title="Meus grupos">
         <List
@@ -135,7 +170,9 @@ export function GroupsPage() {
               );
             }
 
-            if (group.isOwner) {
+            // Admin também gerencia (colaboradores e convites); o que é só do
+            // dono fica escondido dentro do modal.
+            if (permissionsFor(group.myRole).canManageMembers) {
               actions.push(
                 <Button
                   key="manage"
@@ -157,7 +194,9 @@ export function GroupsPage() {
                       {group.id === activeGroupId && (
                         <Tag color="blue">Ativo</Tag>
                       )}
-                      {group.isOwner && <Tag color="gold">Dono</Tag>}
+                      <Tag color={group.myRole === "MASTER" ? "gold" : "default"}>
+                        {GROUP_ROLE_LABEL[group.myRole]}
+                      </Tag>
                     </Space>
                   }
                   description={
@@ -203,7 +242,7 @@ export function GroupsPage() {
                 >
                   <List.Item.Meta
                     title={invite.groupName}
-                    description={invite.inviteeEmail}
+                    description={`${invite.inviteeEmail} · como ${GROUP_ROLE_LABEL[invite.role]}`}
                   />
                 </List.Item>
               )}
@@ -240,7 +279,7 @@ export function GroupsPage() {
                 >
                   <List.Item.Meta
                     title={invite.groupName}
-                    description={`Convidado por ${invite.inviterName}`}
+                    description={`Convidado por ${invite.inviterName} · como ${GROUP_ROLE_LABEL[invite.role]}`}
                   />
                 </List.Item>
               )}

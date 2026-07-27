@@ -5,9 +5,7 @@ module.exports = async function register(req, res) {
     return res.badRequest({ message: 'E-mail, confirmação de e-mail, senha e confirmação são obrigatórios.' });
   }
 
-  const normalizedEmail = sails.services.authservice.normalizeEmail(email);
-
-  if (normalizedEmail !== sails.services.authservice.normalizeEmail(emailConfirmation)) {
+  if (email.toLowerCase().trim() !== emailConfirmation.toLowerCase().trim()) {
     return res.badRequest({ message: 'A confirmação de e-mail não confere.' });
   }
 
@@ -15,6 +13,7 @@ module.exports = async function register(req, res) {
     return res.badRequest({ message: 'A confirmação de senha não confere.' });
   }
 
+  const normalizedEmail = email.toLowerCase().trim();
   const existingUser = await User.findOne({ email: normalizedEmail });
 
   if (existingUser) {

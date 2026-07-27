@@ -1,12 +1,28 @@
 module.exports = async function update(req, res) {
   const groupId = await sails.services.groupservice.resolveGroupId(req);
+
+  if (!(await sails.services.groupservice.requireWrite(req, res, groupId))) {
+    return;
+  }
+
   const expense = await Expense.findOne({ id: req.params.id, groupId });
 
   if (!expense) {
     return res.status(404).json({ message: 'Lançamento não encontrado.' });
   }
 
-  const { date, categoryId, sourceId, supplier, paymentMethod, amount, notes } = req.body;
+  const {
+    date,
+    categoryId,
+    sourceId,
+    supplier,
+    paymentMethod,
+    amount,
+    notes,
+    tipo,
+    dataPrevista,
+    dataRealizada,
+  } = req.body;
   const valuesToSet = {};
 
   if (date !== undefined) {
@@ -50,6 +66,21 @@ module.exports = async function update(req, res) {
 
   if (notes !== undefined) {
     valuesToSet.notes = notes ? notes.trim() : null;
+  }
+
+  if (tipo !== undefined) {
+    if (!['ENTRADA', 'SAIDA'].includes(tipo)) {
+      return res.badRequest({ message: 'Tipo inválido.' });
+    }
+    valuesToSet.tipo = tipo;
+  }
+
+  if (dataPrevista !== undefined) {
+    valuesToSet.dataPrevista = dataPrevista || null;
+  }
+
+  if (dataRealizada !== undefined) {
+    valuesToSet.dataRealizada = dataRealizada || null;
   }
 
   const updatedExpense = await Expense.updateOne({ id: expense.id }).set(valuesToSet);

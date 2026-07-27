@@ -1,16 +1,16 @@
 import { api } from "./api";
 import type { MessageResponse, User } from "./types";
 
-export type UpdateProfilePayload = {
+type UpdateProfilePayload = {
   name: string;
 };
 
-export type UpdateEmailPayload = {
+type UpdateEmailPayload = {
   email: string;
   emailConfirmation: string;
 };
 
-export type ChangePasswordPayload = {
+type ChangePasswordPayload = {
   currentPassword: string;
   password: string;
   passwordConfirmation: string;

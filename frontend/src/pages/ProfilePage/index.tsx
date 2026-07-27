@@ -24,9 +24,8 @@ import { AuthService } from "../../api/modules/AuthService";
 import { ProfileService } from "../../api/modules/ProfileService";
 import { authStorage } from "../../api/modules/api";
 import type { User } from "../../api/modules/types";
-import { PageHeader } from "../../components/PageHeader";
-import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
 import { getErrorMessage } from "../../utils/errors";
+import { usePrivateMobileHeader } from "../../layouts/privateMobileHeader";
 
 type NameForm = {
   name: string;
@@ -46,6 +45,10 @@ type PasswordForm = {
 type ActiveModal = "name" | "email" | "password" | null;
 
 const { Text, Paragraph } = Typography;
+
+const pageHeaderStyle: CSSProperties = {
+  marginBottom: 20,
+};
 
 const profileAvatarStyle: CSSProperties = {
   display: "flex",
@@ -83,6 +86,17 @@ const profileInlineEditStyle: CSSProperties = {
 
 export function ProfilePage() {
   const { token } = theme.useToken();
+
+  const pageTitleStyle: CSSProperties = {
+    margin: 0,
+    color: token.colorTextHeading,
+    fontSize: 26,
+  };
+
+  const pageDescriptionStyle: CSSProperties = {
+    margin: "4px 0 0",
+    color: token.colorTextSecondary,
+  };
 
   const profileDataRowStyle: CSSProperties = {
     padding: "14px 0",
@@ -240,10 +254,14 @@ export function ProfilePage() {
   return (
     <section>
       {contextHolder}
-      <PageHeader
-        title="Perfil"
-        description="Dados da conta, segurança e foto de perfil."
-      />
+      {isDesktop && (
+        <div style={pageHeaderStyle}>
+          <h1 style={pageTitleStyle}>Perfil</h1>
+          <p style={pageDescriptionStyle}>
+            Dados da conta, segurança e foto de perfil.
+          </p>
+        </div>
+      )}
 
       {user && !user.emailValidated && (
         <Alert

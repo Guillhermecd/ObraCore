@@ -20,7 +20,7 @@ module.exports = [
         Expense: 'readonly',
         Group: 'readonly',
         GroupInvite: 'readonly',
-        GroupMember: 'readonly',
+        Branding: 'readonly',
       },
     },
     rules: {

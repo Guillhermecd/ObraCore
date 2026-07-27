@@ -1,11 +1,14 @@
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import { Button, Card, Form, Grid, Input, message, theme } from "antd";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { AuthService } from "../../api/modules/AuthService";
 import { authStorage } from "../../api/modules/api";
+import { BrandLogo } from "../../branding/BrandLogo";
+import { useBranding } from "../../branding/BrandingContext";
+import { hexToRgba, resolveBrandColors } from "../../theme";
 import { getErrorMessage } from "../../utils/errors";
 import { CreateAccountModal } from "./CreateAccountModal";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
@@ -43,13 +46,15 @@ const authActionsStyle: CSSProperties = {
 
 export function LoginPage() {
   const { token } = theme.useToken();
+  const branding = useBranding();
+  const brandColors = resolveBrandColors(branding);
 
   const authShellStyle: CSSProperties = {
     minHeight: "100vh",
     display: "grid",
     placeItems: "center",
     padding: 24,
-    background: `linear-gradient(135deg, rgba(130, 192, 34, 0.08), rgba(184, 216, 120, 0.08)), ${token.colorBgLayout}`,
+    background: `linear-gradient(135deg, ${hexToRgba(brandColors.gradientFrom, 0.08)}, ${hexToRgba(brandColors.gradientTo, 0.08)}), ${token.colorBgLayout}`,
   };
 
   const authActionTextStyle: CSSProperties = {
@@ -72,11 +77,18 @@ export function LoginPage() {
     try {
       const response = await AuthService.login(values);
       authStorage.setSession(response.token, response.user);
-      navigate("/dashboard", { replace: true });
+      navigate("/obra", { replace: true });
     } catch (error) {
       messageApi.error(getErrorMessage(error, "Erro ao entrar."));
     }
   };
+
+  useEffect(() => {
+    const notice = authStorage.consumeExpiredSessionNotice();
+    if (notice) {
+      messageApi.warning(notice);
+    }
+  }, [messageApi]);
 
   return (
     <main style={authShellStyle}>
@@ -84,7 +96,7 @@ export function LoginPage() {
       <section style={authPanelStyle}>
         <Card styles={{ body: { padding: screens.md ? 40 : "32px 24px" } }}>
           <div style={authLogoWrapStyle}>
-            <img style={authLogoStyle} src="/obracore-logo-color.png" alt="ObraCore" />
+            <BrandLogo style={authLogoStyle} />
           </div>
           <Form layout="vertical" onFinish={handleSubmit(submit)}>
             <Controller

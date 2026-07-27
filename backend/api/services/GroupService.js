@@ -469,12 +469,22 @@ module.exports = {
       }
     }
 
-    const personalGroup = await Group.create({
-      name: 'Pessoal',
-      owner: userRecord.id,
-      memberIds: [userRecord.id],
-      isPersonal: true,
-    }).fetch();
+    let personalGroup;
+    try {
+      personalGroup = await Group.create({
+        name: 'Pessoal',
+        owner: userRecord.id,
+        memberIds: [userRecord.id],
+        isPersonal: true,
+      }).fetch();
+    } catch (error) {
+      if (error.code !== 'E_UNIQUE') {
+        throw error;
+      }
+      // Outra requisição concorrente já criou o grupo Pessoal deste usuário
+      // (índice único em `(owner)` para `isPersonal: true`, ver `ensureIndexes`).
+      personalGroup = await Group.findOne({ owner: userRecord.id, isPersonal: true });
+    }
 
     const updatedGroupIds = [...groupIds, personalGroup.id];
     await User.updateOne({ id: userRecord.id }).set({ groupIds: updatedGroupIds });
@@ -528,6 +538,19 @@ module.exports = {
     if (!groupIds.includes(group.id)) {
       await User.updateOne({ id: userRecord.id }).set({ groupIds: [...groupIds, group.id] });
     }
+  },
+
+  /**
+   * Garante o índice único que fecha a corrida de concorrência de
+   * `ensurePersonalGroup`: um usuário só pode ter um grupo Pessoal (índice
+   * parcial, não afeta grupos compartilhados). Chamado uma vez no boot
+   * (`config/bootstrap.js`); `createIndex` é idempotente.
+   */
+  async ensureIndexes() {
+    await Group.getDatastore().manager.collection('groups').createIndex(
+      { owner: 1 },
+      { unique: true, partialFilterExpression: { isPersonal: true } },
+    );
   },
 
   async setMemberRole(group, userId, role) {
